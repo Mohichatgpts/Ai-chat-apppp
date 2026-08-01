@@ -5,7 +5,9 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    maxHttpBufferSize: 5e6 // 5MB tak ki photo allow karne ke liye
+});
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -29,9 +31,17 @@ io.on('connection', (socket) => {
         socket.emit('waiting', 'Waiting for someone to join...');
     }
 
+    // Normal Text Message
     socket.on('send_message', (msg) => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit('receive_message', msg);
+        }
+    });
+
+    // Image Message
+    socket.on('send_image', (imageData) => {
+        if (socket.roomId) {
+            socket.to(socket.roomId).emit('receive_image', imageData);
         }
     });
 
