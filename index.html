@@ -7,11 +7,14 @@
     <style>
         * { box-sizing: border-box; }
         body { font-family: sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        #header { background: #075e54; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
+        #header { background: #075e54; color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { font-weight: bold; font-size: 16px; }
+        .sub-status { font-size: 11px; opacity: 0.8; margin-top: 2px; }
         #messages { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         
-        .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 14px; word-break: break-word; position: relative; display: flex; flex-direction: column; }
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 14px; word-break: break-word; display: flex; flex-direction: column; }
         .msg img { max-width: 100%; max-height: 250px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer; object-fit: cover; }
+        .msg audio { max-width: 220px; margin-top: 5px; }
         
         .time { font-size: 10px; color: #777; align-self: flex-end; margin-top: 4px; }
         .sent .time { color: #557c55; }
@@ -20,12 +23,16 @@
         .received { background: white; align-self: flex-start; }
         .system { background: #fff3cd; align-self: center; font-size: 12px; text-align: center; }
         
-        #input-area { display: flex; padding: 8px; background: #f0f0f0; align-items: center; }
+        #input-area { display: flex; padding: 8px; background: #f0f0f0; align-items: center; gap: 5px; }
         #msg-input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
-        .btn { background: #128c7e; color: white; border: none; padding: 10px 14px; margin-left: 5px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+        .btn { background: #128c7e; color: white; border: none; padding: 8px 12px; border-radius: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .btn:disabled { background: #cccccc; cursor: not-allowed; }
         #file-input { display: none; }
         #clear-btn { background: #ff4d4d; font-size: 11px; padding: 5px 10px; border-radius: 5px; color: white; border: none; cursor: pointer; }
+        
+        /* Recording Mic State */
+        .recording { background: #ff4d4d !important; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
 
         /* Full Screen Image Viewer Modal */
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; flex-direction: column; justify-content: center; align-items: center; }
@@ -37,14 +44,22 @@
 </head>
 <body>
     <div id="header">
-        <span>✨ Mohit the secret animator boy ✨</span>
+        <div>
+            <div class="header-title">✨ Mohit the secret animator boy ✨</div>
+            <div class="sub-status" id="status-text">Connecting...</div>
+        </div>
         <button id="clear-btn" onclick="clearHistory()">Clear Chat</button>
     </div>
+
     <div id="messages"></div>
+
     <div id="input-area">
         <label for="file-input" class="btn" id="img-btn" style="opacity: 0.5; pointer-events: none;">📷</label>
         <input type="file" id="file-input" accept="image/*" disabled>
-        <input type="text" id="msg-input" placeholder="Type..." disabled>
+        
+        <button class="btn" id="mic-btn" disabled>🎤</button>
+        
+        <input type="text" id="msg-input" placeholder="Type a message..." disabled>
         <button id="send-btn" class="btn" disabled>Send</button>
     </div>
 
@@ -65,6 +80,8 @@
         const sendBtn = document.getElementById('send-btn');
         const fileInput = document.getElementById('file-input');
         const imgBtn = document.getElementById('img-btn');
+        const micBtn = document.getElementById('mic-btn');
+        const statusText = document.getElementById('status-text');
 
         const modal = document.getElementById('modal');
         const modalImg = document.getElementById('modal-img');
@@ -76,15 +93,15 @@
             return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        // Load saved chat on refresh
+        // Load Saved Chat
         window.onload = () => {
             const savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-            savedChat.forEach(item => addMsgToDOM(item.content, item.type, item.isImage, item.time));
+            savedChat.forEach(item => addMsgToDOM(item.content, item.type, item.mediaType, item.time));
         };
 
-        function saveMessage(content, type, isImage, time) {
+        function saveMessage(content, type, mediaType, time) {
             const savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-            savedChat.push({ content, type, isImage, time });
+            savedChat.push({ content, type, mediaType, time });
             localStorage.setItem('chatHistory', JSON.stringify(savedChat));
         }
 
@@ -102,15 +119,20 @@
         closeBtn.onclick = () => { modal.style.display = 'none'; };
         modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 
-        function addMsgToDOM(content, type, isImage = false, timeStr = '') {
+        function addMsgToDOM(content, type, mediaType = 'text', timeStr = '') {
             const div = document.createElement('div');
             div.className = `msg ${type}`;
             
-            if (isImage) {
+            if (mediaType === 'image') {
                 const img = document.createElement('img');
                 img.src = content;
                 img.onclick = () => openModal(content);
                 div.appendChild(img);
+            } else if (mediaType === 'audio') {
+                const audio = document.createElement('audio');
+                audio.src = content;
+                audio.controls = true;
+                div.appendChild(audio);
             } else {
                 const textSpan = document.createElement('span');
                 textSpan.innerText = content;
@@ -128,55 +150,117 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        function addMsg(content, type, isImage = false) {
+        function addMsg(content, type, mediaType = 'text') {
             const time = getCurrentTime();
-            addMsgToDOM(content, type, isImage, time);
-            saveMessage(content, type, isImage, time);
+            addMsgToDOM(content, type, mediaType, time);
+            saveMessage(content, type, mediaType, time);
         }
 
-        socket.on('waiting', (msg) => addMsgToDOM(msg, 'system'));
-        socket.on('chat_start', (msg) => {
+        // Socket Events
+        socket.on('waiting', (msg) => {
             addMsgToDOM(msg, 'system');
-            input.disabled = false;
-            sendBtn.disabled = false;
-            fileInput.disabled = false;
-            imgBtn.style.opacity = '1';
-            imgBtn.style.pointerEvents = 'auto';
+            statusText.innerText = 'Offline';
         });
 
-        socket.on('receive_message', (msg) => addMsg(msg, 'received'));
-        socket.on('receive_image', (imgData) => addMsg(imgData, 'received', true));
+        socket.on('chat_start', (msg) => {
+            addMsgToDOM(msg, 'system');
+            statusText.innerText = '2nd person is Online';
+            toggleControls(false);
+        });
+
+        socket.on('receive_message', (msg) => addMsg(msg, 'received', 'text'));
+        socket.on('receive_image', (imgData) => addMsg(imgData, 'received', 'image'));
+        socket.on('receive_audio', (audioData) => addMsg(audioData, 'received', 'audio'));
+
+        socket.on('display_typing', () => { statusText.innerText = '2nd person is typing...'; });
+        socket.on('hide_typing', () => { statusText.innerText = '2nd person is Online'; });
 
         socket.on('user_left', (msg) => {
             addMsgToDOM(msg, 'system');
-            input.disabled = true;
-            sendBtn.disabled = true;
-            fileInput.disabled = true;
-            imgBtn.style.opacity = '0.5';
-            imgBtn.style.pointerEvents = 'none';
+            statusText.innerText = '2nd person went Offline';
+            toggleControls(true);
+        });
+
+        function toggleControls(disabled) {
+            input.disabled = disabled;
+            sendBtn.disabled = disabled;
+            fileInput.disabled = disabled;
+            micBtn.disabled = disabled;
+            imgBtn.style.opacity = disabled ? '0.5' : '1';
+            imgBtn.style.pointerEvents = disabled ? 'none' : 'auto';
+        }
+
+        // Typing Indicator logic
+        let typingTimeout;
+        input.addEventListener('input', () => {
+            socket.emit('typing');
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => { socket.emit('stop_typing'); }, 1500);
         });
 
         function send() {
             if (input.value.trim()) {
-                addMsg(input.value, 'sent');
+                addMsg(input.value, 'sent', 'text');
                 socket.emit('send_message', input.value);
+                socket.emit('stop_typing');
                 input.value = '';
             }
         }
 
+        // Image Handling
         fileInput.addEventListener('change', function() {
             const file = this.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const imageData = e.target.result;
-                    addMsg(imageData, 'sent', true);
+                    addMsg(imageData, 'sent', 'image');
                     socket.emit('send_image', imageData);
                 };
                 reader.readAsDataURL(file);
             }
             this.value = '';
         });
+
+        // Audio Recorder Logic
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        micBtn.onclick = async () => {
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const audioData = e.target.result;
+                            addMsg(audioData, 'sent', 'audio');
+                            socket.emit('send_audio', audioData);
+                        };
+                        reader.readAsDataURL(audioBlob);
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    micBtn.classList.add('recording');
+                    micBtn.innerText = '🎙';
+                } catch (err) {
+                    alert('Microphone permission is required to send voice notes!');
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                micBtn.classList.remove('recording');
+                micBtn.innerText = '🎤';
+            }
+        };
 
         sendBtn.onclick = send;
         input.addEventListener('keypress', (e) => { if(e.key === 'Enter') send(); });
