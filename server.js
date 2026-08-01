@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 15e6 // 15MB size limit
+    maxHttpBufferSize: 50e6 // 50MB Size Limit
 });
 
 app.get('/', (req, res) => {
@@ -14,20 +14,22 @@ app.get('/', (req, res) => {
 });
 
 let waitingUser = null;
-let pendingMessages = []; // स्टोर करने के लिए मेमोरी
+let pendingMessages = []; // अकेले में भेजे गए मैसेज स्टोर करने के लिए
 
 io.on('connection', (socket) => {
-    if (waitingUser) {
+    if (waitingUser && waitingUser.id !== socket.id) {
         const roomId = `room_${waitingUser.id}_${socket.id}`;
+        
         socket.join(roomId);
         waitingUser.join(roomId);
 
         socket.roomId = roomId;
         waitingUser.roomId = roomId;
 
+        // दोनों को ऑनलाइन होने का नोटिफिकेशन
         io.to(roomId).emit('chat_start', '2nd person is Online!');
 
-        // अगर पहले से कोई पेंडिंग मैसेज थे, तो नए बंदे को भेज दो
+        // जो मैसेज पहले भेजे गए थे, वे सिर्फ नए आने वाले (2nd person) को तुरंत भेज दो
         if (pendingMessages.length > 0) {
             pendingMessages.forEach(msgData => {
                 socket.emit(msgData.event, msgData.data);
