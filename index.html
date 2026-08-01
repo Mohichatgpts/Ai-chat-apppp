@@ -7,20 +7,27 @@
     <style>
         * { box-sizing: border-box; }
         body { font-family: sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        #header { background: #075e54; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }
+        #header { background: #075e54; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
         #messages { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .msg { max-width: 80%; padding: 10px 12px; border-radius: 10px; font-size: 14px; word-break: break-word; }
+        
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 14px; word-break: break-word; position: relative; display: flex; flex-direction: column; }
         .msg img { max-width: 100%; max-height: 250px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer; object-fit: cover; }
+        
+        .time { font-size: 10px; color: #777; align-self: flex-end; margin-top: 4px; }
+        .sent .time { color: #557c55; }
+        
         .sent { background: #dcf8c6; align-self: flex-end; }
         .received { background: white; align-self: flex-start; }
-        .system { background: #fff3cd; align-self: center; font-size: 12px; }
+        .system { background: #fff3cd; align-self: center; font-size: 12px; text-align: center; }
+        
         #input-area { display: flex; padding: 8px; background: #f0f0f0; align-items: center; }
         #msg-input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
         .btn { background: #128c7e; color: white; border: none; padding: 10px 14px; margin-left: 5px; border-radius: 20px; font-weight: bold; cursor: pointer; }
         .btn:disabled { background: #cccccc; cursor: not-allowed; }
         #file-input { display: none; }
+        #clear-btn { background: #ff4d4d; font-size: 11px; padding: 5px 10px; border-radius: 5px; color: white; border: none; cursor: pointer; }
 
-        /* Photo Lightbox Modal (Full Screen Viewer) */
+        /* Full Screen Image Viewer Modal */
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; flex-direction: column; justify-content: center; align-items: center; }
         #modal img { max-width: 90%; max-height: 80%; border-radius: 8px; object-fit: contain; }
         #modal-tools { margin-top: 15px; display: flex; gap: 15px; }
@@ -29,7 +36,10 @@
     </style>
 </head>
 <body>
-    <div id="header">✨ Mohit the secret animator boy ✨</div>
+    <div id="header">
+        <span>✨ Mohit the secret animator boy ✨</span>
+        <button id="clear-btn" onclick="clearHistory()">Clear Chat</button>
+    </div>
     <div id="messages"></div>
     <div id="input-area">
         <label for="file-input" class="btn" id="img-btn" style="opacity: 0.5; pointer-events: none;">📷</label>
@@ -38,7 +48,7 @@
         <button id="send-btn" class="btn" disabled>Send</button>
     </div>
 
-    <!-- Fullscreen Image Viewer Modal -->
+    <!-- Image Modal -->
     <div id="modal">
         <img id="modal-img" src="" alt="Full View">
         <div id="modal-tools">
@@ -56,11 +66,32 @@
         const fileInput = document.getElementById('file-input');
         const imgBtn = document.getElementById('img-btn');
 
-        // Modal Elements
         const modal = document.getElementById('modal');
         const modalImg = document.getElementById('modal-img');
         const downloadBtn = document.getElementById('download-btn');
         const closeBtn = document.getElementById('close-btn');
+
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Load saved chat on refresh
+        window.onload = () => {
+            const savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+            savedChat.forEach(item => addMsgToDOM(item.content, item.type, item.isImage, item.time));
+        };
+
+        function saveMessage(content, type, isImage, time) {
+            const savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+            savedChat.push({ content, type, isImage, time });
+            localStorage.setItem('chatHistory', JSON.stringify(savedChat));
+        }
+
+        function clearHistory() {
+            localStorage.removeItem('chatHistory');
+            messagesDiv.innerHTML = '';
+        }
 
         function openModal(src) {
             modalImg.src = src;
@@ -71,24 +102,41 @@
         closeBtn.onclick = () => { modal.style.display = 'none'; };
         modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 
-        function addMsg(content, type, isImage = false) {
+        function addMsgToDOM(content, type, isImage = false, timeStr = '') {
             const div = document.createElement('div');
             div.className = `msg ${type}`;
+            
             if (isImage) {
                 const img = document.createElement('img');
                 img.src = content;
-                img.onclick = () => openModal(content); // Click to open full screen
+                img.onclick = () => openModal(content);
                 div.appendChild(img);
             } else {
-                div.innerText = content;
+                const textSpan = document.createElement('span');
+                textSpan.innerText = content;
+                div.appendChild(textSpan);
             }
+
+            if (type !== 'system') {
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'time';
+                timeSpan.innerText = timeStr || getCurrentTime();
+                div.appendChild(timeSpan);
+            }
+
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        socket.on('waiting', (msg) => addMsg(msg, 'system'));
+        function addMsg(content, type, isImage = false) {
+            const time = getCurrentTime();
+            addMsgToDOM(content, type, isImage, time);
+            saveMessage(content, type, isImage, time);
+        }
+
+        socket.on('waiting', (msg) => addMsgToDOM(msg, 'system'));
         socket.on('chat_start', (msg) => {
-            addMsg(msg, 'system');
+            addMsgToDOM(msg, 'system');
             input.disabled = false;
             sendBtn.disabled = false;
             fileInput.disabled = false;
@@ -100,7 +148,7 @@
         socket.on('receive_image', (imgData) => addMsg(imgData, 'received', true));
 
         socket.on('user_left', (msg) => {
-            addMsg(msg, 'system');
+            addMsgToDOM(msg, 'system');
             input.disabled = true;
             sendBtn.disabled = true;
             fileInput.disabled = true;
