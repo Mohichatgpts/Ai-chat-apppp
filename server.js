@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 5e6 // Allows images up to 5MB
+    maxHttpBufferSize: 15e6 // 15MB size limit for large images & voice notes
 });
 
 app.get('/', (req, res) => {
@@ -31,15 +31,37 @@ io.on('connection', (socket) => {
         socket.emit('waiting', 'Waiting for 2nd person to get Online...');
     }
 
+    // Text Message
     socket.on('send_message', (msg) => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit('receive_message', msg);
         }
     });
 
+    // Image Message
     socket.on('send_image', (imageData) => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit('receive_image', imageData);
+        }
+    });
+
+    // Audio Message
+    socket.on('send_audio', (audioData) => {
+        if (socket.roomId) {
+            socket.to(socket.roomId).emit('receive_audio', audioData);
+        }
+    });
+
+    // Typing Events
+    socket.on('typing', () => {
+        if (socket.roomId) {
+            socket.to(socket.roomId).emit('display_typing');
+        }
+    });
+
+    socket.on('stop_typing', () => {
+        if (socket.roomId) {
+            socket.to(socket.roomId).emit('hide_typing');
         }
     });
 
