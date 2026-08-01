@@ -194,9 +194,37 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const imageData = e.target.result;
-                    addMsg(imageData, 'sent', 'image');
-                    socket.emit('send_image', imageData);
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        let width = img.width;
+                        let height = img.height;
+                        const max_size = 1200; // Optimal Size for Fast Sending
+
+                        if (width > height) {
+                            if (width > max_size) {
+                                height *= max_size / width;
+                                width = max_size;
+                            }
+                        } else {
+                            if (height > max_size) {
+                                width *= max_size / height;
+                                height = max_size;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        const compressedData = canvas.toDataURL('image/jpeg', 0.6);
+
+                        addMsg(compressedData, 'sent', 'image');
+                        socket.emit('send_image', compressedData);
+                    };
                 };
                 reader.readAsDataURL(file);
             }
