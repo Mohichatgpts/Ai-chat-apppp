@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 5e6 // 5MB tak ki photo allow karne ke liye
+    maxHttpBufferSize: 5e6 // Allows images up to 5MB
 });
 
 app.get('/', (req, res) => {
@@ -24,21 +24,19 @@ io.on('connection', (socket) => {
         socket.roomId = roomId;
         waitingUser.roomId = roomId;
 
-        io.to(roomId).emit('chat_start', 'Connected with a stranger!');
+        io.to(roomId).emit('chat_start', '2nd person is Online!');
         waitingUser = null;
     } else {
         waitingUser = socket;
-        socket.emit('waiting', 'Waiting for someone to join...');
+        socket.emit('waiting', 'Waiting for 2nd person to get Online...');
     }
 
-    // Normal Text Message
     socket.on('send_message', (msg) => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit('receive_message', msg);
         }
     });
 
-    // Image Message
     socket.on('send_image', (imageData) => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit('receive_image', imageData);
@@ -48,7 +46,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         if (waitingUser === socket) waitingUser = null;
         if (socket.roomId) {
-            socket.to(socket.roomId).emit('user_left', 'Stranger left the chat.');
+            socket.to(socket.roomId).emit('user_left', '2nd person went Offline.');
         }
     });
 });
