@@ -26,15 +26,12 @@
         #input-area { display: flex; padding: 8px; background: #f0f0f0; align-items: center; gap: 5px; }
         #msg-input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
         .btn { background: #128c7e; color: white; border: none; padding: 8px 12px; border-radius: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .btn:disabled { background: #cccccc; cursor: not-allowed; }
         #file-input { display: none; }
         #clear-btn { background: #ff4d4d; font-size: 11px; padding: 5px 10px; border-radius: 5px; color: white; border: none; cursor: pointer; }
         
-        /* Recording Mic State */
         .recording { background: #ff4d4d !important; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0.5; } }
 
-        /* Full Screen Image Viewer Modal */
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; flex-direction: column; justify-content: center; align-items: center; }
         #modal img { max-width: 90%; max-height: 80%; border-radius: 8px; object-fit: contain; }
         #modal-tools { margin-top: 15px; display: flex; gap: 15px; }
@@ -54,13 +51,13 @@
     <div id="messages"></div>
 
     <div id="input-area">
-        <label for="file-input" class="btn" id="img-btn" style="opacity: 0.5; pointer-events: none;">📷</label>
-        <input type="file" id="file-input" accept="image/*" disabled>
+        <label for="file-input" class="btn" id="img-btn">📷</label>
+        <input type="file" id="file-input" accept="image/*">
         
-        <button class="btn" id="mic-btn" disabled>🎤</button>
+        <button class="btn" id="mic-btn">🎙️</button>
         
-        <input type="text" id="msg-input" placeholder="Type a message..." disabled>
-        <button id="send-btn" class="btn" disabled>Send</button>
+        <input type="text" id="msg-input" placeholder="Type a message...">
+        <button id="send-btn" class="btn">Send</button>
     </div>
 
     <!-- Image Modal -->
@@ -79,7 +76,6 @@
         const input = document.getElementById('msg-input');
         const sendBtn = document.getElementById('send-btn');
         const fileInput = document.getElementById('file-input');
-        const imgBtn = document.getElementById('img-btn');
         const micBtn = document.getElementById('mic-btn');
         const statusText = document.getElementById('status-text');
 
@@ -93,7 +89,6 @@
             return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        // Load Saved Chat
         window.onload = () => {
             const savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
             savedChat.forEach(item => addMsgToDOM(item.content, item.type, item.mediaType, item.time));
@@ -156,16 +151,14 @@
             saveMessage(content, type, mediaType, time);
         }
 
-        // Socket Events
         socket.on('waiting', (msg) => {
             addMsgToDOM(msg, 'system');
-            statusText.innerText = 'Offline';
+            statusText.innerText = 'Offline (Messages will deliver when online)';
         });
 
         socket.on('chat_start', (msg) => {
             addMsgToDOM(msg, 'system');
             statusText.innerText = '2nd person is Online';
-            toggleControls(false);
         });
 
         socket.on('receive_message', (msg) => addMsg(msg, 'received', 'text'));
@@ -178,19 +171,8 @@
         socket.on('user_left', (msg) => {
             addMsgToDOM(msg, 'system');
             statusText.innerText = '2nd person went Offline';
-            toggleControls(true);
         });
 
-        function toggleControls(disabled) {
-            input.disabled = disabled;
-            sendBtn.disabled = disabled;
-            fileInput.disabled = disabled;
-            micBtn.disabled = disabled;
-            imgBtn.style.opacity = disabled ? '0.5' : '1';
-            imgBtn.style.pointerEvents = disabled ? 'none' : 'auto';
-        }
-
-        // Typing Indicator logic
         let typingTimeout;
         input.addEventListener('input', () => {
             socket.emit('typing');
@@ -207,7 +189,6 @@
             }
         }
 
-        // Image Handling
         fileInput.addEventListener('change', function() {
             const file = this.files[0];
             if (file) {
@@ -222,7 +203,6 @@
             this.value = '';
         });
 
-        // Audio Recorder Logic
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
@@ -250,7 +230,7 @@
                     mediaRecorder.start();
                     isRecording = true;
                     micBtn.classList.add('recording');
-                    micBtn.innerText = '🎙';
+                    micBtn.innerText = '🎙️';
                 } catch (err) {
                     alert('Microphone permission is required to send voice notes!');
                 }
@@ -258,7 +238,7 @@
                 mediaRecorder.stop();
                 isRecording = false;
                 micBtn.classList.remove('recording');
-                micBtn.innerText = '🎤';
+                micBtn.innerText = '🎙️';
             }
         };
 
