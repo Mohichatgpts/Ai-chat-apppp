@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 15e6 // 15MB size limit for large images & voice notes
+    maxHttpBufferSize: 15e6 // 15MB size limit
 });
 
 app.get('/', (req, res) => {
@@ -14,6 +14,7 @@ app.get('/', (req, res) => {
 });
 
 let waitingUser = null;
+let pendingMessages = []; // स्टोर करने के लिए मेमोरी
 
 io.on('connection', (socket) => {
     if (waitingUser) {
@@ -25,9 +26,19 @@ io.on('connection', (socket) => {
         waitingUser.roomId = roomId;
 
         io.to(roomId).emit('chat_start', '2nd person is Online!');
+
+        // अगर पहले से कोई पेंडिंग मैसेज थे, तो नए बंदे को भेज दो
+        if (pendingMessages.length > 0) {
+            pendingMessages.forEach(msgData => {
+                socket.emit(msgData.event, msgData.data);
+            });
+            pendingMessages = []; // मैसेज डिलीवर होने के बाद खाली कर दो
+        }
+
         waitingUser = null;
     } else {
         waitingUser = socket;
+        pendingMessages = []; // नए वेटिंग यूज़र के लिए लिस्ट रीसेट
         socket.emit('waiting', 'Waiting for 2nd person to get Online...');
     }
 
@@ -35,6 +46,8 @@ io.on('connection', (socket) => {
     socket.on('send_message', (msg) => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit('receive_message', msg);
+        } else if (socket === waitingUser) {
+            pendingMessages.push({ event: 'receive_message', data: msg });
         }
     });
 
@@ -42,6 +55,8 @@ io.on('connection', (socket) => {
     socket.on('send_image', (imageData) => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit('receive_image', imageData);
+        } else if (socket === waitingUser) {
+            pendingMessages.push({ event: 'receive_image', data: imageData });
         }
     });
 
@@ -49,6 +64,8 @@ io.on('connection', (socket) => {
     socket.on('send_audio', (audioData) => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit('receive_audio', audioData);
+        } else if (socket === waitingUser) {
+            pendingMessages.push({ event: 'receive_audio', data: audioData });
         }
     });
 
@@ -66,7 +83,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        if (waitingUser === socket) waitingUser = null;
+        if (waitingUser === socket) {
+            waitingUser = null;
+            pendingMessages = [];
+        }
         if (socket.roomId) {
             socket.to(socket.roomId).emit('user_left', '2nd person went Offline.');
         }
