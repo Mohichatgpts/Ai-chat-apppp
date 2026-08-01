@@ -10,20 +10,41 @@
         #header { background: #075e54; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }
         #messages { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         .msg { max-width: 80%; padding: 10px 12px; border-radius: 10px; font-size: 14px; word-break: break-word; }
+        .msg img { max-width: 100%; max-height: 250px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer; object-fit: cover; }
         .sent { background: #dcf8c6; align-self: flex-end; }
         .received { background: white; align-self: flex-start; }
         .system { background: #fff3cd; align-self: center; font-size: 12px; }
-        #input-area { display: flex; padding: 8px; background: #f0f0f0; }
+        #input-area { display: flex; padding: 8px; background: #f0f0f0; align-items: center; }
         #msg-input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
-        #send-btn { background: #128c7e; color: white; border: none; padding: 10px 18px; margin-left: 5px; border-radius: 20px; font-weight: bold; }
+        .btn { background: #128c7e; color: white; border: none; padding: 10px 14px; margin-left: 5px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+        .btn:disabled { background: #cccccc; cursor: not-allowed; }
+        #file-input { display: none; }
+
+        /* Photo Lightbox Modal (Full Screen Viewer) */
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; flex-direction: column; justify-content: center; align-items: center; }
+        #modal img { max-width: 90%; max-height: 80%; border-radius: 8px; object-fit: contain; }
+        #modal-tools { margin-top: 15px; display: flex; gap: 15px; }
+        .modal-btn { background: #128c7e; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; text-decoration: none; cursor: pointer; }
+        #close-btn { background: #ff4d4d; }
     </style>
 </head>
 <body>
     <div id="header">✨ Mohit the secret animator boy ✨</div>
     <div id="messages"></div>
     <div id="input-area">
+        <label for="file-input" class="btn" id="img-btn" style="opacity: 0.5; pointer-events: none;">📷</label>
+        <input type="file" id="file-input" accept="image/*" disabled>
         <input type="text" id="msg-input" placeholder="Type..." disabled>
-        <button id="send-btn" disabled>Send</button>
+        <button id="send-btn" class="btn" disabled>Send</button>
+    </div>
+
+    <!-- Fullscreen Image Viewer Modal -->
+    <div id="modal">
+        <img id="modal-img" src="" alt="Full View">
+        <div id="modal-tools">
+            <a id="download-btn" class="modal-btn" download="chat-photo.png">📥 Download</a>
+            <button id="close-btn" class="modal-btn">❌ Close</button>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -32,11 +53,35 @@
         const messagesDiv = document.getElementById('messages');
         const input = document.getElementById('msg-input');
         const sendBtn = document.getElementById('send-btn');
+        const fileInput = document.getElementById('file-input');
+        const imgBtn = document.getElementById('img-btn');
 
-        function addMsg(text, type) {
+        // Modal Elements
+        const modal = document.getElementById('modal');
+        const modalImg = document.getElementById('modal-img');
+        const downloadBtn = document.getElementById('download-btn');
+        const closeBtn = document.getElementById('close-btn');
+
+        function openModal(src) {
+            modalImg.src = src;
+            downloadBtn.href = src;
+            modal.style.display = 'flex';
+        }
+
+        closeBtn.onclick = () => { modal.style.display = 'none'; };
+        modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+        function addMsg(content, type, isImage = false) {
             const div = document.createElement('div');
             div.className = `msg ${type}`;
-            div.innerText = text;
+            if (isImage) {
+                const img = document.createElement('img');
+                img.src = content;
+                img.onclick = () => openModal(content); // Click to open full screen
+                div.appendChild(img);
+            } else {
+                div.innerText = content;
+            }
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
@@ -46,12 +91,21 @@
             addMsg(msg, 'system');
             input.disabled = false;
             sendBtn.disabled = false;
+            fileInput.disabled = false;
+            imgBtn.style.opacity = '1';
+            imgBtn.style.pointerEvents = 'auto';
         });
+
         socket.on('receive_message', (msg) => addMsg(msg, 'received'));
+        socket.on('receive_image', (imgData) => addMsg(imgData, 'received', true));
+
         socket.on('user_left', (msg) => {
             addMsg(msg, 'system');
             input.disabled = true;
             sendBtn.disabled = true;
+            fileInput.disabled = true;
+            imgBtn.style.opacity = '0.5';
+            imgBtn.style.pointerEvents = 'none';
         });
 
         function send() {
@@ -61,6 +115,21 @@
                 input.value = '';
             }
         }
+
+        fileInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageData = e.target.result;
+                    addMsg(imageData, 'sent', true);
+                    socket.emit('send_image', imageData);
+                };
+                reader.readAsDataURL(file);
+            }
+            this.value = '';
+        });
+
         sendBtn.onclick = send;
         input.addEventListener('keypress', (e) => { if(e.key === 'Enter') send(); });
     </script>
