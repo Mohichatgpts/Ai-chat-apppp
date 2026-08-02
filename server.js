@@ -6,11 +6,10 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// Ping और Timeout सेटिंग्स जिससे कनेक्शन बना रहे
 const io = new Server(server, {
     maxHttpBufferSize: 50e6,
-    pingInterval: 5000,  // हर 5 सेकंड में चेक करेगा
-    pingTimeout: 10000   // 10 सेकंड तक रिस्पॉन्स न मिलने पर ही ऑफलाइन मानेगा
+    pingInterval: 5000,
+    pingTimeout: 10000
 });
 
 app.get('/', (req, res) => {
@@ -21,7 +20,6 @@ let activeUsers = [];
 let pendingMessages = [];
 
 io.on('connection', (socket) => {
-    // एक्टिव यूज़र्स में जोड़ें (Duplicates से बचें)
     if (!activeUsers.some(u => u.id === socket.id)) {
         activeUsers.push(socket);
     }
