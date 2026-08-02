@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 50e6 // 50MB Limit
+    maxHttpBufferSize: 50e6
 });
 
 app.get('/', (req, res) => {
@@ -28,17 +28,17 @@ io.on('connection', (socket) => {
 
         io.to(roomId).emit('chat_start', '2nd person is Online!');
 
+        // पेंडिंग मैसेजेस को सही क्रम में नए यूज़र को भेजें
         if (pendingMessages.length > 0) {
             pendingMessages.forEach(msgData => {
                 socket.emit(msgData.event, msgData.data);
             });
-            pendingMessages = [];
+            pendingMessages = []; 
         }
 
         waitingUser = null;
     } else {
         waitingUser = socket;
-        pendingMessages = [];
         socket.emit('waiting', 'Waiting for 2nd person to get Online...');
     }
 
@@ -66,31 +66,24 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Delete for Everyone Event
     socket.on('delete_for_everyone', (msgId) => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit('message_deleted', msgId);
         }
-        // Remove from pending if present
         pendingMessages = pendingMessages.filter(m => m.data.id !== msgId);
     });
 
     socket.on('typing', () => {
-        if (socket.roomId) {
-            socket.to(socket.roomId).emit('display_typing');
-        }
+        if (socket.roomId) socket.to(socket.roomId).emit('display_typing');
     });
 
     socket.on('stop_typing', () => {
-        if (socket.roomId) {
-            socket.to(socket.roomId).emit('hide_typing');
-        }
+        if (socket.roomId) socket.to(socket.roomId).emit('hide_typing');
     });
 
     socket.on('disconnect', () => {
         if (waitingUser === socket) {
             waitingUser = null;
-            pendingMessages = [];
         }
         if (socket.roomId) {
             socket.to(socket.roomId).emit('user_left', '2nd person went Offline.');
