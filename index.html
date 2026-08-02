@@ -6,14 +6,18 @@
     <title>Mohit the secret animator boy</title>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        #header { background: #075e54; color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; }
+        body { font-family: sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Header */
+        #header { background: #075e54; color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
         .header-title { font-weight: bold; font-size: 16px; }
         .sub-status { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+        
+        /* Messages Area */
         #messages { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         
-        .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 14px; word-break: break-word; display: flex; flex-direction: column; }
-        .msg img { max-width: 100%; max-height: 250px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer; object-fit: cover; }
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 14px; word-break: break-word; display: flex; flex-direction: column; position: relative; cursor: pointer; user-select: none; }
+        .msg img { max-width: 100%; max-height: 250px; border-radius: 8px; display: block; margin-top: 5px; object-fit: cover; }
         .msg audio { max-width: 220px; margin-top: 5px; }
         
         .time { font-size: 10px; color: #777; align-self: flex-end; margin-top: 4px; }
@@ -21,18 +25,48 @@
         
         .sent { background: #dcf8c6; align-self: flex-end; }
         .received { background: white; align-self: flex-start; }
-        .system { background: #fff3cd; align-self: center; font-size: 12px; text-align: center; }
-        
+        .system { background: #fff3cd; align-self: center; font-size: 12px; text-align: center; cursor: default; }
+        .deleted-msg { font-style: italic; color: #888; font-size: 13px; }
+
+        /* Input Bar */
         #input-area { display: flex; padding: 8px; background: #f0f0f0; align-items: center; gap: 5px; }
         #msg-input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
         .btn { background: #128c7e; color: white; border: none; padding: 8px 12px; border-radius: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         #file-input { display: none; }
-        #clear-btn { background: #ff4d4d; font-size: 11px; padding: 5px 10px; border-radius: 5px; color: white; border: none; cursor: pointer; }
         
         .recording { background: #ff4d4d !important; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0.5; } }
 
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; flex-direction: column; justify-content: center; align-items: center; }
+        /* Slide-in Settings Panel */
+        #settings-panel {
+            position: fixed; top: 0; right: -100%; width: 100%; max-width: 350px; height: 100%;
+            background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.2); transition: 0.3s ease;
+            z-index: 999; display: flex; flex-direction: column;
+        }
+        #settings-panel.active { right: 0; }
+        .settings-header { background: #075e54; color: white; padding: 15px; display: flex; align-items: center; gap: 15px; font-size: 18px; font-weight: bold; }
+        .back-btn { cursor: pointer; font-size: 20px; }
+        .settings-body { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+        .setting-item { display: flex; justify-content: space-between; align-items: center; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
+        .clear-btn { background: #ff4d4d; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+        /* Switch Toggle UI */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #128c7e; }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* Custom Action Modal for Delete & Image View */
+        #action-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .action-card { background: white; width: 85%; max-width: 320px; border-radius: 12px; overflow: hidden; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .action-card button { padding: 12px; border: none; background: #f0f0f0; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; text-align: left; }
+        .action-card button.danger { color: #d9534f; background: #fdf0f0; }
+        .action-card button.cancel { text-align: center; background: transparent; color: #777; margin-top: 5px; }
+
+        /* Image View Modal */
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1001; flex-direction: column; justify-content: center; align-items: center; }
         #modal img { max-width: 90%; max-height: 80%; border-radius: 8px; object-fit: contain; }
         #modal-tools { margin-top: 15px; display: flex; gap: 15px; }
         .modal-btn { background: #128c7e; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; text-decoration: none; cursor: pointer; }
@@ -40,16 +74,20 @@
     </style>
 </head>
 <body>
-    <div id="header">
+
+    <!-- Main Header -->
+    <div id="header" onclick="openSettings()">
         <div>
             <div class="header-title">✨ Mohit the secret animator boy ✨</div>
             <div class="sub-status" id="status-text">Connecting...</div>
         </div>
-        <button id="clear-btn" onclick="clearHistory()">Clear Chat</button>
+        <span style="font-size: 20px;">⚙️</span>
     </div>
 
+    <!-- Messages Container -->
     <div id="messages"></div>
 
+    <!-- Input Bar -->
     <div id="input-area">
         <label for="file-input" class="btn" id="img-btn">📷</label>
         <input type="file" id="file-input" accept="image/*">
@@ -60,7 +98,43 @@
         <button id="send-btn" class="btn">Send</button>
     </div>
 
-    <!-- Image Modal -->
+    <!-- Settings Panel -->
+    <div id="settings-panel">
+        <div class="settings-header">
+            <span class="back-btn" onclick="closeSettings()">←</span>
+            <span>Settings & Info</span>
+        </div>
+        <div class="settings-body">
+            <div class="setting-item">
+                <span>🔔 Push Notifications</span>
+                <label class="switch">
+                    <input type="checkbox" id="notif-toggle" onchange="toggleNotifications(this)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="setting-item">
+                <span>🔊 Message Sound (Ting)</span>
+                <label class="switch">
+                    <input type="checkbox" id="sfx-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <button class="clear-btn" onclick="clearHistory()">Clear Chat History</button>
+        </div>
+    </div>
+
+    <!-- Delete Action Modal -->
+    <div id="action-modal">
+        <div class="action-card">
+            <div style="font-weight: bold; margin-bottom: 5px;" id="action-title">Message Options</div>
+            <button id="view-img-option" style="display:none;">🔍 View Image</button>
+            <button id="del-me-btn">🗑️ Delete for Me</button>
+            <button id="del-all-btn" class="danger">🗑️ Delete for Everyone</button>
+            <button class="cancel" onclick="closeActionModal()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Image View Modal -->
     <div id="modal">
         <img id="modal-img" src="" alt="Full View">
         <div id="modal-tools">
@@ -78,11 +152,64 @@
         const fileInput = document.getElementById('file-input');
         const micBtn = document.getElementById('mic-btn');
         const statusText = document.getElementById('status-text');
+        const settingsPanel = document.getElementById('settings-panel');
+        const sfxToggle = document.getElementById('sfx-toggle');
+
+        const actionModal = document.getElementById('action-modal');
+        const delMeBtn = document.getElementById('del-me-btn');
+        const delAllBtn = document.getElementById('del-all-btn');
+        const viewImgOption = document.getElementById('view-img-option');
 
         const modal = document.getElementById('modal');
         const modalImg = document.getElementById('modal-img');
         const downloadBtn = document.getElementById('download-btn');
         const closeBtn = document.getElementById('close-btn');
+
+        let selectedMsgData = null;
+
+        function playTingSound() {
+            if (!sfxToggle.checked) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.15);
+            } catch(e) {}
+        }
+
+        function openSettings() { settingsPanel.classList.add('active'); }
+        function closeSettings() { settingsPanel.classList.remove('active'); }
+
+        function toggleNotifications(el) {
+            if (el.checked) {
+                if ('Notification' in window) {
+                    Notification.requestPermission().then(permission => {
+                        if (permission !== 'granted') {
+                            el.checked = false;
+                            alert('Notification permission was denied!');
+                        }
+                    });
+                } else {
+                    el.checked = false;
+                    alert('Browser does not support notifications.');
+                }
+            }
+        }
+
+        function triggerNotification(title, body) {
+            const notifToggle = document.getElementById('notif-toggle');
+            if (notifToggle.checked && Notification.permission === 'granted') {
+                new Notification(title, { body: body, icon: 'https://cdn-icons-png.flaticon.com/512/732/732200.png' });
+            }
+        }
 
         function getCurrentTime() {
             const now = new Date();
@@ -91,18 +218,31 @@
 
         window.onload = () => {
             const savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-            savedChat.forEach(item => addMsgToDOM(item.content, item.type, item.mediaType, item.time));
+            savedChat.forEach(item => addMsgToDOM(item.id, item.content, item.type, item.mediaType, item.time, item.deleted));
         };
 
-        function saveMessage(content, type, mediaType, time) {
+        function saveMessage(id, content, type, mediaType, time, deleted = false) {
             const savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-            savedChat.push({ content, type, mediaType, time });
+            savedChat.push({ id, content, type, mediaType, time, deleted });
+            localStorage.setItem('chatHistory', JSON.stringify(savedChat));
+        }
+
+        function updateLocalDeleteStatus(id, deleteType) {
+            let savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+            if (deleteType === 'me') {
+                savedChat = savedChat.filter(m => m.id !== id);
+            } else if (deleteType === 'everyone') {
+                savedChat = savedChat.map(m => m.id === id ? { ...m, deleted: true, content: 'This message was deleted' } : m);
+            }
             localStorage.setItem('chatHistory', JSON.stringify(savedChat));
         }
 
         function clearHistory() {
-            localStorage.removeItem('chatHistory');
-            messagesDiv.innerHTML = '';
+            if (confirm("Are you sure you want to clear chat history?")) {
+                localStorage.removeItem('chatHistory');
+                messagesDiv.innerHTML = '';
+                closeSettings();
+            }
         }
 
         function openModal(src) {
@@ -114,62 +254,126 @@
         closeBtn.onclick = () => { modal.style.display = 'none'; };
         modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 
-        function addMsgToDOM(content, type, mediaType = 'text', timeStr = '') {
-            const div = document.createElement('div');
-            div.className = `msg ${type}`;
-            
-            if (mediaType === 'image') {
-                const img = document.createElement('img');
-                img.src = content;
-                img.onclick = () => openModal(content);
-                div.appendChild(img);
-            } else if (mediaType === 'audio') {
-                const audio = document.createElement('audio');
-                audio.src = content;
-                audio.controls = true;
-                div.appendChild(audio);
+        function openActionModal(msgData) {
+            selectedMsgData = msgData;
+            if (msgData.deleted) return;
+
+            if (msgData.mediaType === 'image') {
+                viewImgOption.style.display = 'block';
+                viewImgOption.onclick = () => {
+                    openModal(msgData.content);
+                    closeActionModal();
+                };
             } else {
-                const textSpan = document.createElement('span');
-                textSpan.innerText = content;
-                div.appendChild(textSpan);
+                viewImgOption.style.display = 'none';
             }
 
-            if (type !== 'system') {
-                const timeSpan = document.createElement('span');
-                timeSpan.className = 'time';
-                timeSpan.innerText = timeStr || getCurrentTime();
-                div.appendChild(timeSpan);
+            // Only allow Delete for Everyone if it's sent by me or received
+            delAllBtn.style.display = 'block';
+            actionModal.style.display = 'flex';
+        }
+
+        function closeActionModal() { actionModal.style.display = 'none'; }
+
+        delMeBtn.onclick = () => {
+            if (selectedMsgData) {
+                const el = document.getElementById(`msg-${selectedMsgData.id}`);
+                if (el) el.remove();
+                updateLocalDeleteStatus(selectedMsgData.id, 'me');
+                closeActionModal();
+            }
+        };
+
+        delAllBtn.onclick = () => {
+            if (selectedMsgData) {
+                markAsDeletedDOM(selectedMsgData.id);
+                updateLocalDeleteStatus(selectedMsgData.id, 'everyone');
+                socket.emit('delete_for_everyone', selectedMsgData.id);
+                closeActionModal();
+            }
+        };
+
+        function markAsDeletedDOM(id) {
+            const el = document.getElementById(`msg-${id}`);
+            if (el) {
+                el.innerHTML = '<span class="deleted-msg">🚫 This message was deleted</span>';
+            }
+        }
+
+        function addMsgToDOM(id, content, type, mediaType = 'text', timeStr = '', deleted = false) {
+            const div = document.createElement('div');
+            div.className = `msg ${type}`;
+            div.id = `msg-${id}`;
+
+            const msgObj = { id, content, type, mediaType, timeStr, deleted };
+
+            if (deleted) {
+                div.innerHTML = '<span class="deleted-msg">🚫 This message was deleted</span>';
+            } else {
+                if (mediaType === 'image') {
+                    const img = document.createElement('img');
+                    img.src = content;
+                    div.appendChild(img);
+                } else if (mediaType === 'audio') {
+                    const audio = document.createElement('audio');
+                    audio.src = content;
+                    audio.controls = true;
+                    div.appendChild(audio);
+                } else {
+                    const textSpan = document.createElement('span');
+                    textSpan.innerText = content;
+                    div.appendChild(textSpan);
+                }
+
+                if (type !== 'system') {
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'time';
+                    timeSpan.innerText = timeStr || getCurrentTime();
+                    div.appendChild(timeSpan);
+                }
+
+                div.onclick = () => openActionModal(msgObj);
             }
 
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        function addMsg(content, type, mediaType = 'text') {
+        function addMsg(id, content, type, mediaType = 'text') {
             const time = getCurrentTime();
-            addMsgToDOM(content, type, mediaType, time);
-            saveMessage(content, type, mediaType, time);
+            addMsgToDOM(id, content, type, mediaType, time);
+            saveMessage(id, content, type, mediaType, time);
+
+            if (type === 'received') {
+                playTingSound();
+                triggerNotification('New Message Received', mediaType === 'text' ? content : 'Sent a file');
+            }
         }
 
         socket.on('waiting', (msg) => {
-            addMsgToDOM(msg, 'system');
-            statusText.innerText = 'Offline (Messages will deliver when online)';
+            addMsgToDOM('sys_' + Date.now(), msg, 'system');
+            statusText.innerText = 'Offline (Messages deliver when online)';
         });
 
         socket.on('chat_start', (msg) => {
-            addMsgToDOM(msg, 'system');
+            addMsgToDOM('sys_' + Date.now(), msg, 'system');
             statusText.innerText = '2nd person is Online';
         });
 
-        socket.on('receive_message', (msg) => addMsg(msg, 'received', 'text'));
-        socket.on('receive_image', (imgData) => addMsg(imgData, 'received', 'image'));
-        socket.on('receive_audio', (audioData) => addMsg(audioData, 'received', 'audio'));
+        socket.on('receive_message', (data) => addMsg(data.id, data.content, 'received', 'text'));
+        socket.on('receive_image', (data) => addMsg(data.id, data.content, 'received', 'image'));
+        socket.on('receive_audio', (data) => addMsg(data.id, data.content, 'received', 'audio'));
+
+        socket.on('message_deleted', (msgId) => {
+            markAsDeletedDOM(msgId);
+            updateLocalDeleteStatus(msgId, 'everyone');
+        });
 
         socket.on('display_typing', () => { statusText.innerText = '2nd person is typing...'; });
         socket.on('hide_typing', () => { statusText.innerText = '2nd person is Online'; });
 
         socket.on('user_left', (msg) => {
-            addMsgToDOM(msg, 'system');
+            addMsgToDOM('sys_' + Date.now(), msg, 'system');
             statusText.innerText = '2nd person went Offline';
         });
 
@@ -182,8 +386,10 @@
 
         function send() {
             if (input.value.trim()) {
-                addMsg(input.value, 'sent', 'text');
-                socket.emit('send_message', input.value);
+                const msgId = 'msg_' + Date.now();
+                const msgText = input.value;
+                addMsg(msgId, msgText, 'sent', 'text');
+                socket.emit('send_message', { id: msgId, content: msgText });
                 socket.emit('stop_typing');
                 input.value = '';
             }
@@ -199,10 +405,9 @@
                     img.onload = function() {
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
-                        
                         let width = img.width;
                         let height = img.height;
-                        const max_size = 1200; // Optimal Size for Fast Sending
+                        const max_size = 1200;
 
                         if (width > height) {
                             if (width > max_size) {
@@ -221,9 +426,10 @@
                         ctx.drawImage(img, 0, 0, width, height);
 
                         const compressedData = canvas.toDataURL('image/jpeg', 0.6);
+                        const msgId = 'img_' + Date.now();
 
-                        addMsg(compressedData, 'sent', 'image');
-                        socket.emit('send_image', compressedData);
+                        addMsg(msgId, compressedData, 'sent', 'image');
+                        socket.emit('send_image', { id: msgId, content: compressedData });
                     };
                 };
                 reader.readAsDataURL(file);
@@ -248,8 +454,9 @@
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             const audioData = e.target.result;
-                            addMsg(audioData, 'sent', 'audio');
-                            socket.emit('send_audio', audioData);
+                            const msgId = 'aud_' + Date.now();
+                            addMsg(msgId, audioData, 'sent', 'audio');
+                            socket.emit('send_audio', { id: msgId, content: audioData });
                         };
                         reader.readAsDataURL(audioBlob);
                         stream.getTracks().forEach(track => track.stop());
@@ -260,7 +467,7 @@
                     micBtn.classList.add('recording');
                     micBtn.innerText = '🎙️';
                 } catch (err) {
-                    alert('Microphone permission is required to send voice notes!');
+                    alert('Microphone permission is required!');
                 }
             } else {
                 mediaRecorder.stop();
