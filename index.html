@@ -10,51 +10,56 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            background-color: #0e1621;
-            color: #ffffff;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            overflow: hidden;
         }
 
         .chat-container {
             width: 100%;
             max-width: 480px;
             height: 100vh;
-            background-color: #17212b;
+            background-color: #ffffff;
             display: flex;
             flex-direction: column;
-            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
-        /* Header */
+        /* Header Bar */
         .chat-header {
-            padding: 12px 16px;
-            background-color: #242f3d;
+            padding: 10px 16px;
+            background-color: #ffffff;
             display: flex;
             align-items: center;
-            gap: 12px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            justify-content: space-between;
+            border-bottom: 1px solid #e4e6eb;
             z-index: 10;
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
         .avatar {
-            width: 42px;
-            height: 42px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #6b8cce, #8e54e9);
+            background: linear-gradient(135deg, #0084ff, #00c6ff);
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 20px;
-            font-weight: bold;
+            font-size: 18px;
+            color: #ffffff;
         }
 
         .header-info {
@@ -63,160 +68,158 @@
         }
 
         .header-title {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
-            color: #ffffff;
+            color: #050505;
         }
 
         .status-text {
             font-size: 12px;
-            color: #7f91a4;
-            transition: color 0.3s;
+            color: #65676b;
         }
 
         .status-text.online {
-            color: #4cd964;
+            color: #31a24c;
+            font-weight: bold;
         }
 
-        /* Chat Body */
+        /* Top Settings & Notification Icons */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #050505;
+            padding: 4px;
+        }
+
+        /* Chat Body - Light Background */
         .chat-messages {
             flex: 1;
-            padding: 15px;
+            padding: 12px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            background-color: #0e1621;
+            gap: 8px;
+            background-color: #f0f2f5;
         }
 
         .message {
             max-width: 75%;
-            padding: 10px 14px;
-            border-radius: 12px;
+            padding: 9px 13px;
+            border-radius: 18px;
             font-size: 15px;
             line-height: 1.4;
             word-wrap: break-word;
             position: relative;
-            animation: fadeIn 0.2s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         .message.sent {
             align-self: flex-end;
-            background-color: #2b5278;
+            background-color: #0084ff;
             color: #ffffff;
-            border-bottom-right-radius: 2px;
+            border-bottom-right-radius: 4px;
         }
 
         .message.received {
             align-self: flex-start;
-            background-color: #182533;
-            color: #ffffff;
-            border-bottom-left-radius: 2px;
+            background-color: #e4e6eb;
+            color: #050505;
+            border-bottom-left-radius: 4px;
         }
 
         .message img {
             max-width: 100%;
-            border-radius: 8px;
-            margin-top: 5px;
+            border-radius: 12px;
+            margin-top: 4px;
             display: block;
         }
 
         .message audio {
             max-width: 100%;
-            margin-top: 5px;
+            margin-top: 4px;
         }
 
         .msg-time {
             font-size: 10px;
-            color: #7f91a4;
+            opacity: 0.7;
             text-align: right;
-            margin-top: 4px;
+            margin-top: 3px;
         }
 
         .delete-btn {
             position: absolute;
             top: 2px;
             right: 6px;
-            font-size: 12px;
-            color: rgba(255,255,255,0.4);
+            font-size: 11px;
+            opacity: 0.6;
             cursor: pointer;
-            display: none;
         }
 
-        .message:hover .delete-btn {
-            display: block;
-        }
-
-        /* Typing Indicator */
         .typing-indicator {
             font-size: 12px;
-            color: #6b8cce;
+            color: #0084ff;
             font-style: italic;
-            padding: 0 15px 5px 15px;
-            height: 18px;
+            padding: 2px 16px;
+            min-height: 18px;
+            background-color: #f0f2f5;
         }
 
-        /* Chat Input Area */
+        /* Bottom Input Bar */
         .chat-input-area {
             padding: 10px;
-            background-color: #17212b;
+            background-color: #ffffff;
             display: flex;
             align-items: center;
             gap: 8px;
+            border-top: 1px solid #e4e6eb;
         }
 
         .input-box {
             flex: 1;
-            background-color: #242f3d;
+            background-color: #f0f2f5;
             border: none;
             outline: none;
-            padding: 12px 15px;
+            padding: 10px 14px;
             border-radius: 20px;
-            color: #ffffff;
+            color: #050505;
             font-size: 15px;
         }
 
         .input-box::placeholder {
-            color: #7f91a4;
+            color: #8a8d91;
         }
 
         .icon-btn {
             background: none;
             border: none;
-            color: #6b8cce;
+            color: #0084ff;
             font-size: 20px;
             cursor: pointer;
-            padding: 8px;
+            padding: 6px;
             display: flex;
             justify-content: center;
             align-items: center;
-            border-radius: 50%;
-            transition: background 0.2s;
-        }
-
-        .icon-btn:active {
-            background-color: rgba(255,255,255,0.1);
         }
 
         .send-btn {
-            background-color: #5288c1;
+            background-color: #0084ff;
             color: #ffffff;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 15px;
         }
 
         .recording {
-            color: #ff3b30;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
+            color: #fa3e3e;
         }
 
         #imageInput {
@@ -227,22 +230,26 @@
 <body>
 
 <div class="chat-container">
-    <!-- Header -->
+    <!-- Top Header Bar with Settings and Notification Buttons -->
     <div class="chat-header">
-        <div class="avatar">✨</div>
-        <div class="header-info">
-            <div class="header-title">Mohit the secret animator boy</div>
-            <div class="status-text" id="statusText">Connecting...</div>
+        <div class="header-left">
+            <div class="avatar">✨</div>
+            <div class="header-info">
+                <div class="header-title">Mohit the secret animator boy</div>
+                <div class="status-text" id="statusText">Connecting...</div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="header-btn" title="Notification" onclick="alert('Notifications Active')">🔔</button>
+            <button class="header-btn" title="Settings" onclick="alert('Settings menu')">⚙️</button>
         </div>
     </div>
 
-    <!-- Messages Window -->
+    <!-- Message Body -->
     <div class="chat-messages" id="messageContainer"></div>
-
-    <!-- Typing Indicator -->
     <div class="typing-indicator" id="typingIndicator"></div>
 
-    <!-- Input Box & Action Buttons -->
+    <!-- Bottom Input Bar -->
     <div class="chat-input-area">
         <label for="imageInput" class="icon-btn">📷</label>
         <input type="file" id="imageInput" accept="image/*">
@@ -256,11 +263,7 @@
 </div>
 
 <script>
-    const socket = io({
-        reconnection: true,
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 1000
-    });
+    const socket = io();
 
     const statusText = document.getElementById('statusText');
     const messageContainer = document.getElementById('messageContainer');
@@ -275,36 +278,27 @@
     let audioChunks = [];
     let isRecording = false;
 
-    // ऑटो-रीकनेक्शन (Page Visibility Fix)
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            if (!socket.connected) {
-                socket.connect();
-            }
+        if (document.visibilityState === 'visible' && !socket.connected) {
+            socket.connect();
         }
     });
 
-    socket.on('connect', () => {
-        console.log('Connected to server');
-    });
-
-    // ऑनलाइन / ऑफलाइन स्टेटस लिसनर्स
-    socket.on('waiting', (msg) => {
+    socket.on('waiting', () => {
         statusText.innerText = 'Offline (Messages deliver when online)';
         statusText.classList.remove('online');
     });
 
-    socket.on('chat_start', (msg) => {
+    socket.on('chat_start', () => {
         statusText.innerText = '2nd person is Online';
         statusText.classList.add('online');
     });
 
-    socket.on('user_left', (msg) => {
+    socket.on('user_left', () => {
         statusText.innerText = '2nd person went Offline';
         statusText.classList.remove('online');
     });
 
-    // मैसेज भेजना (Send Text)
     function sendMessage() {
         const text = msgInput.value.trim();
         if (text !== '') {
@@ -326,7 +320,6 @@
         if (e.key === 'Enter') sendMessage();
     });
 
-    // टाइपिंग इंडिकेटर
     msgInput.addEventListener('input', () => {
         socket.emit('typing');
         clearTimeout(typingTimeout);
@@ -343,12 +336,10 @@
         typingIndicator.innerText = '';
     });
 
-    // मैसेज रिसीव होना (Receive Text)
     socket.on('receive_message', (data) => {
         appendMessage(data, 'received');
     });
 
-    // फोटो भेजना और पाना (Images)
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -370,7 +361,6 @@
         appendMessage(data, 'received');
     });
 
-    // ऑडियो मैसेज भेजना (Voice Record)
     micBtn.addEventListener('click', async () => {
         if (!isRecording) {
             try {
@@ -378,9 +368,7 @@
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
 
-                mediaRecorder.ondataavailable = (event) => {
-                    audioChunks.push(event.data);
-                };
+                mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
 
                 mediaRecorder.onstop = () => {
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
@@ -401,7 +389,7 @@
                 isRecording = true;
                 micBtn.classList.add('recording');
             } catch (err) {
-                alert('Microphone access is required to record voice messages.');
+                alert('Microphone permission needed.');
             }
         } else {
             mediaRecorder.stop();
@@ -414,25 +402,15 @@
         appendMessage(data, 'received');
     });
 
-    // स्क्रीन पर मैसेज शो करना (Append Message to UI)
     function appendMessage(data, type) {
         const msgDiv = document.createElement('div');
         msgDiv.classList.add('message', type);
         msgDiv.id = data.id;
 
         let contentHtml = '';
-
-        if (data.text) {
-            contentHtml += `<div>${escapeHtml(data.text)}</div>`;
-        }
-
-        if (data.image) {
-            contentHtml += `<img src="${data.image}" alt="Image">`;
-        }
-
-        if (data.audio) {
-            contentHtml += `<audio controls src="${data.audio}"></audio>`;
-        }
+        if (data.text) contentHtml += `<div>${escapeHtml(data.text)}</div>`;
+        if (data.image) contentHtml += `<img src="${data.image}" alt="Image">`;
+        if (data.audio) contentHtml += `<audio controls src="${data.audio}"></audio>`;
 
         contentHtml += `<div class="msg-time">${data.time}</div>`;
         
@@ -445,9 +423,8 @@
         messageContainer.scrollTop = messageContainer.scrollHeight;
     }
 
-    // मैसेज डिलीट करना (Delete for Everyone)
     window.deleteMessage = function(msgId) {
-        if (confirm('Delete this message for everyone?')) {
+        if (confirm('Delete this message?')) {
             const el = document.getElementById(msgId);
             if (el) el.remove();
             socket.emit('delete_for_everyone', msgId);
