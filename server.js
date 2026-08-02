@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 50e6 // 50MB Size Limit
+    maxHttpBufferSize: 50e6 // 50MB Limit
 });
 
 app.get('/', (req, res) => {
@@ -14,7 +14,7 @@ app.get('/', (req, res) => {
 });
 
 let waitingUser = null;
-let pendingMessages = []; // अकेले में भेजे गए मैसेज स्टोर करने के लिए
+let pendingMessages = [];
 
 io.on('connection', (socket) => {
     if (waitingUser && waitingUser.id !== socket.id) {
@@ -26,52 +26,55 @@ io.on('connection', (socket) => {
         socket.roomId = roomId;
         waitingUser.roomId = roomId;
 
-        // दोनों को ऑनलाइन होने का नोटिफिकेशन
         io.to(roomId).emit('chat_start', '2nd person is Online!');
 
-        // जो मैसेज पहले भेजे गए थे, वे सिर्फ नए आने वाले (2nd person) को तुरंत भेज दो
         if (pendingMessages.length > 0) {
             pendingMessages.forEach(msgData => {
                 socket.emit(msgData.event, msgData.data);
             });
-            pendingMessages = []; // मैसेज डिलीवर होने के बाद खाली कर दो
+            pendingMessages = [];
         }
 
         waitingUser = null;
     } else {
         waitingUser = socket;
-        pendingMessages = []; // नए वेटिंग यूज़र के लिए लिस्ट रीसेट
+        pendingMessages = [];
         socket.emit('waiting', 'Waiting for 2nd person to get Online...');
     }
 
-    // Text Message
-    socket.on('send_message', (msg) => {
+    socket.on('send_message', (data) => {
         if (socket.roomId) {
-            socket.to(socket.roomId).emit('receive_message', msg);
+            socket.to(socket.roomId).emit('receive_message', data);
         } else if (socket === waitingUser) {
-            pendingMessages.push({ event: 'receive_message', data: msg });
+            pendingMessages.push({ event: 'receive_message', data: data });
         }
     });
 
-    // Image Message
-    socket.on('send_image', (imageData) => {
+    socket.on('send_image', (data) => {
         if (socket.roomId) {
-            socket.to(socket.roomId).emit('receive_image', imageData);
+            socket.to(socket.roomId).emit('receive_image', data);
         } else if (socket === waitingUser) {
-            pendingMessages.push({ event: 'receive_image', data: imageData });
+            pendingMessages.push({ event: 'receive_image', data: data });
         }
     });
 
-    // Audio Message
-    socket.on('send_audio', (audioData) => {
+    socket.on('send_audio', (data) => {
         if (socket.roomId) {
-            socket.to(socket.roomId).emit('receive_audio', audioData);
+            socket.to(socket.roomId).emit('receive_audio', data);
         } else if (socket === waitingUser) {
-            pendingMessages.push({ event: 'receive_audio', data: audioData });
+            pendingMessages.push({ event: 'receive_audio', data: data });
         }
     });
 
-    // Typing Events
+    // Delete for Everyone Event
+    socket.on('delete_for_everyone', (msgId) => {
+        if (socket.roomId) {
+            socket.to(socket.roomId).emit('message_deleted', msgId);
+        }
+        // Remove from pending if present
+        pendingMessages = pendingMessages.filter(m => m.data.id !== msgId);
+    });
+
     socket.on('typing', () => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit('display_typing');
