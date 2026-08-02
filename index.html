@@ -1,56 +1,144 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Mohit the secret animator boy</title>
     <style>
-        * { box-sizing: border-box; }
-        body { font-family: sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         
+        /* Mobile, Tablet & Desktop responsive height using 100dvh */
+        html, body {
+            height: 100%;
+            height: 100dvh;
+            width: 100vw;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #e5ddd5;
+        }
+
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #efeae2;
+            position: relative;
+        }
+
         /* Header */
-        #header { background: #075e54; color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        #header {
+            background: #075e54;
+            color: white;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            z-index: 10;
+            flex-shrink: 0;
+        }
         .header-title { font-weight: bold; font-size: 16px; }
-        .sub-status { font-size: 11px; opacity: 0.8; margin-top: 2px; }
-        
-        /* Messages Area */
-        #messages { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        
-        .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 14px; word-break: break-word; display: flex; flex-direction: column; position: relative; cursor: pointer; user-select: none; }
+        .sub-status { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+
+        /* Messages Container */
+        #messages {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .msg {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            word-break: break-word;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
         .msg img { max-width: 100%; max-height: 250px; border-radius: 8px; display: block; margin-top: 5px; object-fit: cover; }
         .msg audio { max-width: 220px; margin-top: 5px; }
-        
+
         .time { font-size: 10px; color: #777; align-self: flex-end; margin-top: 4px; }
         .sent .time { color: #557c55; }
-        
+
         .sent { background: #dcf8c6; align-self: flex-end; }
         .received { background: white; align-self: flex-start; }
         .system { background: #fff3cd; align-self: center; font-size: 12px; text-align: center; cursor: default; }
         .deleted-msg { font-style: italic; color: #888; font-size: 13px; }
 
-        /* Input Bar */
-        #input-area { display: flex; padding: 8px; background: #f0f0f0; align-items: center; gap: 5px; }
-        #msg-input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
-        .btn { background: #128c7e; color: white; border: none; padding: 8px 12px; border-radius: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        /* Input Area with Safe Area Bottom Support */
+        #input-area {
+            display: flex;
+            padding: 8px 10px;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+            background: #f0f0f0;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            border-top: 1px solid #ccc;
+        }
+
+        #msg-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            outline: none;
+            font-size: 15px;
+            background: white;
+        }
+
+        .btn {
+            background: #128c7e;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 50%;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+        }
+
+        #send-btn {
+            border-radius: 20px;
+            width: auto;
+            padding: 8px 16px;
+        }
+
         #file-input { display: none; }
-        
         .recording { background: #ff4d4d !important; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0.5; } }
 
         /* Slide-in Settings Panel */
         #settings-panel {
-            position: fixed; top: 0; right: -100%; width: 100%; max-width: 350px; height: 100%;
-            background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.2); transition: 0.3s ease;
-            z-index: 999; display: flex; flex-direction: column;
+            position: absolute; top: 0; right: -100%; width: 100%; height: 100%;
+            background: white; transition: 0.3s ease; z-index: 99;
+            display: flex; flex-direction: column;
         }
         #settings-panel.active { right: 0; }
         .settings-header { background: #075e54; color: white; padding: 15px; display: flex; align-items: center; gap: 15px; font-size: 18px; font-weight: bold; }
-        .back-btn { cursor: pointer; font-size: 20px; }
+        .back-btn { cursor: pointer; font-size: 22px; }
         .settings-body { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
         .setting-item { display: flex; justify-content: space-between; align-items: center; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
-        .clear-btn { background: #ff4d4d; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .clear-btn { background: #ff4d4d; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-        /* Switch Toggle UI */
+        /* Switch Toggle */
         .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
@@ -58,15 +146,14 @@
         input:checked + .slider { background-color: #128c7e; }
         input:checked + .slider:before { transform: translateX(20px); }
 
-        /* Custom Action Modal for Delete & Image View */
-        #action-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
-        .action-card { background: white; width: 85%; max-width: 320px; border-radius: 12px; overflow: hidden; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        /* Modals */
+        #action-modal, #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .action-card { background: white; width: 85%; max-width: 320px; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
         .action-card button { padding: 12px; border: none; background: #f0f0f0; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; text-align: left; }
         .action-card button.danger { color: #d9534f; background: #fdf0f0; }
         .action-card button.cancel { text-align: center; background: transparent; color: #777; margin-top: 5px; }
 
-        /* Image View Modal */
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1001; flex-direction: column; justify-content: center; align-items: center; }
+        #modal { background: rgba(0,0,0,0.9); flex-direction: column; }
         #modal img { max-width: 90%; max-height: 80%; border-radius: 8px; object-fit: contain; }
         #modal-tools { margin-top: 15px; display: flex; gap: 15px; }
         .modal-btn { background: #128c7e; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; text-decoration: none; cursor: pointer; }
@@ -75,58 +162,53 @@
 </head>
 <body>
 
-    <!-- Main Header -->
-    <div id="header" onclick="openSettings()">
-        <div>
-            <div class="header-title">✨ Mohit the secret animator boy ✨</div>
-            <div class="sub-status" id="status-text">Connecting...</div>
-        </div>
-        <span style="font-size: 20px;">⚙️</span>
-    </div>
-
-    <!-- Messages Container -->
-    <div id="messages"></div>
-
-    <!-- Input Bar -->
-    <div id="input-area">
-        <label for="file-input" class="btn" id="img-btn">📷</label>
-        <input type="file" id="file-input" accept="image/*">
-        
-        <button class="btn" id="mic-btn">🎙️</button>
-        
-        <input type="text" id="msg-input" placeholder="Type a message...">
-        <button id="send-btn" class="btn">Send</button>
-    </div>
-
-    <!-- Settings Panel -->
-    <div id="settings-panel">
-        <div class="settings-header">
-            <span class="back-btn" onclick="closeSettings()">←</span>
-            <span>Settings & Info</span>
-        </div>
-        <div class="settings-body">
-            <div class="setting-item">
-                <span>🔔 Push Notifications</span>
-                <label class="switch">
-                    <input type="checkbox" id="notif-toggle" onchange="toggleNotifications(this)">
-                    <span class="slider"></span>
-                </label>
+    <div id="app-container">
+        <!-- Main Header -->
+        <div id="header" onclick="openSettings()">
+            <div>
+                <div class="header-title">✨ Mohit the secret animator boy ✨</div>
+                <div class="sub-status" id="status-text">Connecting...</div>
             </div>
-            <div class="setting-item">
-                <span>🔊 Message Sound (Ting)</span>
-                <label class="switch">
-                    <input type="checkbox" id="sfx-toggle" checked>
-                    <span class="slider"></span>
-                </label>
+            <span style="font-size: 20px;">⚙️</span>
+        </div>
+
+        <!-- Messages Area -->
+        <div id="messages"></div>
+
+        <!-- Input Bar -->
+        <div id="input-area">
+            <label for="file-input" class="btn">📷</label>
+            <input type="file" id="file-input" accept="image/*">
+            
+            <button class="btn" id="mic-btn">🎙️</button>
+            
+            <input type="text" id="msg-input" placeholder="Type a message..." autocomplete="off">
+            <button id="send-btn" class="btn">Send</button>
+        </div>
+
+        <!-- Slide-in Settings Panel -->
+        <div id="settings-panel">
+            <div class="settings-header">
+                <span class="back-btn" onclick="closeSettings()">←</span>
+                <span>Settings</span>
             </div>
-            <button class="clear-btn" onclick="clearHistory()">Clear Chat History</button>
+            <div class="settings-body">
+                <div class="setting-item">
+                    <span>🔊 Message Sound (Ting)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="sfx-toggle" onchange="toggleSFX(this)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <button class="clear-btn" onclick="clearHistory()">Clear Chat History</button>
+            </div>
         </div>
     </div>
 
-    <!-- Delete Action Modal -->
+    <!-- Action Modal -->
     <div id="action-modal">
         <div class="action-card">
-            <div style="font-weight: bold; margin-bottom: 5px;" id="action-title">Message Options</div>
+            <div style="font-weight: bold; margin-bottom: 5px;">Message Options</div>
             <button id="view-img-option" style="display:none;">🔍 View Image</button>
             <button id="del-me-btn">🗑️ Delete for Me</button>
             <button id="del-all-btn" class="danger">🗑️ Delete for Everyone</button>
@@ -167,6 +249,19 @@
 
         let selectedMsgData = null;
 
+        // डिफ़ॉल्ट रूप से साउंड बंद ही रहेगा (Default OFF)
+        window.onload = () => {
+            const savedSFX = localStorage.getItem('sfx_enabled') === 'true';
+            sfxToggle.checked = savedSFX;
+
+            const savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+            savedChat.forEach(item => addMsgToDOM(item.id, item.content, item.type, item.mediaType, item.time, item.deleted));
+        };
+
+        function toggleSFX(el) {
+            localStorage.setItem('sfx_enabled', el.checked);
+        }
+
         function playTingSound() {
             if (!sfxToggle.checked) return;
             try {
@@ -188,38 +283,10 @@
         function openSettings() { settingsPanel.classList.add('active'); }
         function closeSettings() { settingsPanel.classList.remove('active'); }
 
-        function toggleNotifications(el) {
-            if (el.checked) {
-                if ('Notification' in window) {
-                    Notification.requestPermission().then(permission => {
-                        if (permission !== 'granted') {
-                            el.checked = false;
-                            alert('Notification permission was denied!');
-                        }
-                    });
-                } else {
-                    el.checked = false;
-                    alert('Browser does not support notifications.');
-                }
-            }
-        }
-
-        function triggerNotification(title, body) {
-            const notifToggle = document.getElementById('notif-toggle');
-            if (notifToggle.checked && Notification.permission === 'granted') {
-                new Notification(title, { body: body, icon: 'https://cdn-icons-png.flaticon.com/512/732/732200.png' });
-            }
-        }
-
         function getCurrentTime() {
             const now = new Date();
             return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
-
-        window.onload = () => {
-            const savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-            savedChat.forEach(item => addMsgToDOM(item.id, item.content, item.type, item.mediaType, item.time, item.deleted));
-        };
 
         function saveMessage(id, content, type, mediaType, time, deleted = false) {
             const savedChat = JSON.parse(localStorage.getItem('chatHistory') || '[]');
@@ -268,8 +335,6 @@
                 viewImgOption.style.display = 'none';
             }
 
-            // Only allow Delete for Everyone if it's sent by me or received
-            delAllBtn.style.display = 'block';
             actionModal.style.display = 'flex';
         }
 
@@ -346,7 +411,6 @@
 
             if (type === 'received') {
                 playTingSound();
-                triggerNotification('New Message Received', mediaType === 'text' ? content : 'Sent a file');
             }
         }
 
