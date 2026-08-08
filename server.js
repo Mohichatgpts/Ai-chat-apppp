@@ -7,7 +7,7 @@ const path = require('path');
 app.use(express.static(path.join(__dirname)));
 
 let chatHistory = [];
-let roomTitle = "Friend 😇🙂";
+let roomTitle = "🙂";
 
 io.on('connection', (socket) => {
     socket.emit('title_updated', roomTitle);
@@ -42,13 +42,25 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('hide_typing');
     });
 
-    // रिएक्शन को सर्वर चैट हिस्ट्री (chatHistory) में अपडेट करने के लिए
     socket.on('send_reaction', (data) => {
         const msg = chatHistory.find(m => m.id === data.msgId);
         if (msg) {
             msg.reaction = data.emoji;
         }
         socket.broadcast.emit('receive_reaction', data);
+    });
+
+    // DELETE FOR EVERYONE LOGIC
+    socket.on('delete_message', (data) => {
+        const index = chatHistory.findIndex(m => m.id === data.msgId);
+        if (index !== -1) {
+            chatHistory[index].deleted = true;
+            chatHistory[index].text = "🚫 यह संदेश हटा दिया गया है";
+            delete chatHistory[index].image;
+            delete chatHistory[index].audio;
+            delete chatHistory[index].reaction;
+        }
+        io.emit('message_deleted', { msgId: data.msgId });
     });
 
     socket.on('disconnect', () => {
