@@ -16,7 +16,7 @@ app.get('/', (req, res) => {
 
 let chatHistory = [];
 let connectedUsers = 0;
-let roomTitle = "Mohit the secret animator boy";
+let roomTitle = "Friends 😇😊";
 
 io.on('connection', (socket) => {
     connectedUsers++;
@@ -27,7 +27,7 @@ io.on('connection', (socket) => {
     if (connectedUsers >= 2) {
         io.emit('chat_start');
     } else {
-        socket.emit('waiting');
+        socket.emit('waiting⏳ for 2nd friend');
     }
 
     socket.on('change_title', (newTitle) => {
