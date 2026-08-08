@@ -33,7 +33,6 @@
             position: relative;
         }
 
-        /* Top Header */
         .chat-header {
             padding: 12px 16px;
             background-color: #ffffff;
@@ -71,7 +70,6 @@
             flex: 1;
         }
 
-        /* Editable Title Input */
         .header-title-input {
             font-size: 16px;
             font-weight: 600;
@@ -107,7 +105,6 @@
             padding: 4px;
         }
 
-        /* Chat Wallpaper Body */
         .chat-messages {
             flex: 1;
             padding: 16px;
@@ -128,13 +125,16 @@
             margin-bottom: 8px;
         }
 
+        /* Long Message Fix: word-break + overflow-wrap */
         .message {
-            max-width: 78%;
+            max-width: 80%;
             padding: 10px 14px;
             border-radius: 18px;
             font-size: 15px;
             line-height: 1.4;
             word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: anywhere;
             position: relative;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             white-space: pre-wrap;
@@ -170,13 +170,13 @@
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            gap: 4px;
+            gap: 6px;
             margin-top: 4px;
         }
 
         .msg-time {
             font-size: 10px;
-            opacity: 0.7;
+            opacity: 0.75;
         }
 
         .message.sent .msg-time {
@@ -191,23 +191,26 @@
             background: transparent;
             color: #8e8e93;
             border: none;
-            font-size: 11px;
+            font-size: 12px;
             cursor: pointer;
             padding: 0 2px;
+        }
+
+        .message.sent .delete-btn {
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .typing-indicator {
             font-size: 12px;
             color: #007aff;
             font-style: italic;
-            padding: 4px 16px;
-            min-height: 20px;
+            padding: 2px 16px;
+            min-height: 18px;
             background-color: #f2f2f7;
         }
 
-        /* Input Area */
         .chat-input-area {
-            padding: 10px 12px;
+            padding: 8px 12px;
             background-color: #ffffff;
             display: flex;
             align-items: flex-end;
@@ -233,7 +236,7 @@
             outline: none;
             color: #000000;
             font-size: 15px;
-            max-height: 100px;
+            max-height: 120px;
             resize: none;
             padding: 6px 0;
             line-height: 20px;
@@ -284,7 +287,6 @@
             display: none;
         }
 
-        /* Custom Popup */
         .modal-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -341,12 +343,10 @@
 <body>
 
 <div class="chat-container">
-    <!-- Header -->
     <div class="chat-header">
         <div class="header-left">
             <div class="avatar">✨</div>
             <div class="header-info">
-                <!-- Editable Header Name -->
                 <input type="text" class="header-title-input" id="headerTitle" title="Click to edit name" value="Mohit the secret animator boy">
                 <div class="status-text" id="statusText">Connecting...</div>
             </div>
@@ -354,13 +354,11 @@
         <button class="header-btn" title="Clear Chat" onclick="confirmClearAll()">🗑️</button>
     </div>
 
-    <!-- Messages Area -->
     <div class="chat-messages" id="messageContainer">
         <div class="date-badge">Today</div>
     </div>
     <div class="typing-indicator" id="typingIndicator"></div>
 
-    <!-- Input Footer -->
     <div class="chat-input-area">
         <div class="input-container">
             <textarea class="input-box" id="msgInput" rows="1" placeholder="Type a message..."></textarea>
@@ -371,7 +369,6 @@
         <button class="send-btn" id="sendBtn">➔</button>
     </div>
 
-    <!-- Modal -->
     <div class="modal-overlay" id="customModal">
         <div class="modal-card">
             <div class="modal-title" id="modalTitle">Delete message?</div>
@@ -409,7 +406,6 @@
     let audioStream = null;
     let targetDeleteId = null;
 
-    // एडिटेबल नाम चेंज इवेंट
     headerTitle.addEventListener('change', () => {
         socket.emit('change_title', headerTitle.value);
     });
@@ -454,7 +450,7 @@
         const text = msgInput.value.trim();
         if (text !== '') {
             const msgData = {
-                id: 'msg_' + Date.now(),
+                id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                 userId: myUserId,
                 text: text,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -482,7 +478,7 @@
             const reader = new FileReader();
             reader.onload = function(event) {
                 const msgData = {
-                    id: 'msg_' + Date.now(),
+                    id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                     userId: myUserId,
                     image: event.target.result,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -511,7 +507,7 @@
                     const reader = new FileReader();
                     reader.onload = function(event) {
                         const msgData = {
-                            id: 'msg_' + Date.now(),
+                            id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                             userId: myUserId,
                             audio: event.target.result,
                             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -519,7 +515,7 @@
                         appendMessage(msgData, 'sent');
                         socket.emit('send_audio', msgData);
                     };
-                    reader.readAsDataURL(file);
+                    reader.readAsDataURL(audioBlob); // Fixed: read audioBlob instead of file
                 };
 
                 mediaRecorder.start();
