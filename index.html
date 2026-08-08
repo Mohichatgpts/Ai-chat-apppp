@@ -54,7 +54,6 @@
         @keyframes recordPulse { 0% { transform: scale(1); } 100% { transform: scale(1.2); } }
         #imageInput { display: none; }
 
-        /* Mobile Image Viewer Overlay */
         .img-viewer-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; display: none; flex-direction: column; z-index: 2000; touch-action: none; }
         .img-viewer-header { padding: 14px 16px; background: rgba(0,0,0,0.8); display: flex; justify-content: space-between; align-items: center; color: #fff; z-index: 2001; }
         .img-viewer-body { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; width: 100%; height: 100%; }
@@ -62,7 +61,6 @@
         .img-viewer-controls { padding: 14px; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; gap: 12px; z-index: 2001; }
         .img-btn { background: rgba(255,255,255,0.2); color: #fff; border: none; padding: 10px 18px; border-radius: 20px; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 
-        /* Modal Overlay */
         .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); display: none; justify-content: center; align-items: center; z-index: 1500; }
         .modal-card { background: #fff; padding: 22px; border-radius: 16px; width: 85%; max-width: 310px; color: #111b21; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
         .modal-title { font-size: 17px; font-weight: 600; margin-bottom: 10px; }
@@ -144,12 +142,16 @@
     const clearBtn = document.getElementById('clearBtn');
 
     let typingTimeout, mediaRecorder, audioChunks = [], isRecording = false, audioStream = null, activePicker = null;
+    let historyLoadedOnce = false;
 
     headerTitle.addEventListener('change', () => socket.emit('change_title', headerTitle.value));
     socket.on('title_updated', (newTitle) => headerTitle.value = newTitle);
 
     socket.on('load_history', (history) => {
-        messageContainer.innerHTML = '<div class="date-badge">TODAY</div>';
+        if (!historyLoadedOnce) {
+            messageContainer.innerHTML = '<div class="date-badge">TODAY</div>';
+            historyLoadedOnce = true;
+        }
         history.forEach(item => {
             if (!item.deletedFor || !item.deletedFor.includes(myUserId)) {
                 const isSent = item.userId === myUserId;
@@ -192,27 +194,56 @@
     socket.on('hide_typing', () => typingIndicator.innerText = '');
     socket.on('receive_message', (data) => appendMessage(data, 'received'));
 
+    // IMAGE COMPRESSION TO PREVENT OVERLOAD & DISCONNECT
+    function compressImage(file, callback) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const maxDim = 1200;
+
+                if (width > height && width > maxDim) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                } else if (height > maxDim) {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                callback(compressedBase64);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
+            compressImage(file, (compressedData) => {
                 const msgData = {
                     id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                     userId: myUserId,
-                    image: event.target.result,
+                    image: compressedData,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
                 };
                 appendMessage(msgData, 'sent');
                 socket.emit('send_image', msgData);
-            };
-            reader.readAsDataURL(file);
+                imageInput.value = '';
+            });
         }
     });
 
     socket.on('receive_image', (data) => appendMessage(data, 'received'));
 
-    // VOICE MESSAGE FIXED
     micBtn.addEventListener('click', async () => {
         if (!isRecording) {
             try {
@@ -238,7 +269,7 @@
                         appendMessage(msgData, 'sent');
                         socket.emit('send_audio', msgData);
                     };
-                    reader.readAsDataURL(audioBlob); // ✅ बग फिक्स किया गया
+                    reader.readAsDataURL(audioBlob);
                 };
                 mediaRecorder.start();
                 isRecording = true;
@@ -504,7 +535,6 @@
         }
     });
 
-    // PHONE DOWNLOAD PHOTO FIX (BLOB DRIVEN FOR IOS & ANDROID)
     downloadPhotoBtn.addEventListener('click', async () => {
         try {
             const response = await fetch(fullImg.src);
