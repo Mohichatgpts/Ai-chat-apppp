@@ -6,7 +6,6 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// Ping और Timeout सेटिंग्स - जिससे बैकग्राउंड में फोन जाने पर भी कनेक्शन सही रहे
 const io = new Server(server, {
     maxHttpBufferSize: 50e6,
     pingInterval: 5000,
@@ -18,66 +17,52 @@ app.get('/', (req, res) => {
 });
 
 let activeUsers = []; 
-let pendingMessages = [];
+let chatHistory = []; // मैसेज मेमोरी में सेव रहेंगे
 
 io.on('connection', (socket) => {
     if (!activeUsers.some(u => u.id === socket.id)) {
         activeUsers.push(socket);
     }
 
+    // यूजर के कनेक्ट होते ही पुरानी हिस्ट्री भेजें
+    socket.emit('load_history', chatHistory);
+
     if (activeUsers.length >= 2) {
         const user1 = activeUsers[0];
         const user2 = activeUsers[1];
-
         const roomId = `room_${user1.id}_${user2.id}`;
         
         user1.join(roomId);
         user2.join(roomId);
-
         user1.roomId = roomId;
         user2.roomId = roomId;
 
         io.to(roomId).emit('chat_start', '2nd person is Online!');
-
-        if (pendingMessages.length > 0) {
-            pendingMessages.forEach(msgData => {
-                io.to(roomId).emit(msgData.event, msgData.data);
-            });
-            pendingMessages = [];
-        }
     } else {
         socket.emit('waiting', 'Waiting for 2nd person to get Online...');
     }
 
-    socket.on('send_message', (data) => {
+    function saveAndBroadcast(msgData, eventName) {
+        chatHistory.push({ ...msgData, event: eventName });
         if (socket.roomId) {
-            socket.to(socket.roomId).emit('receive_message', data);
-        } else {
-            pendingMessages.push({ event: 'receive_message', data: data });
+            socket.to(socket.roomId).emit(eventName, msgData);
         }
-    });
+    }
 
-    socket.on('send_image', (data) => {
-        if (socket.roomId) {
-            socket.to(socket.roomId).emit('receive_image', data);
-        } else {
-            pendingMessages.push({ event: 'receive_image', data: data });
-        }
-    });
+    socket.on('send_message', (data) => saveAndBroadcast(data, 'receive_message'));
+    socket.on('send_image', (data) => saveAndBroadcast(data, 'receive_image'));
+    socket.on('send_audio', (data) => saveAndBroadcast(data, 'receive_audio'));
 
-    socket.on('send_audio', (data) => {
-        if (socket.roomId) {
-            socket.to(socket.roomId).emit('receive_audio', data);
-        } else {
-            pendingMessages.push({ event: 'receive_audio', data: data });
-        }
-    });
-
+    // एक मैसेज डिलीट
     socket.on('delete_for_everyone', (msgId) => {
-        if (socket.roomId) {
-            socket.to(socket.roomId).emit('message_deleted', msgId);
-        }
-        pendingMessages = pendingMessages.filter(m => m.data.id !== msgId);
+        chatHistory = chatHistory.filter(m => m.id !== msgId);
+        io.emit('message_deleted', msgId);
+    });
+
+    // पूरी चैट साफ़ करें
+    socket.on('clear_all_chat', () => {
+        chatHistory = [];
+        io.emit('chat_cleared');
     });
 
     socket.on('typing', () => {
@@ -90,20 +75,8 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         activeUsers = activeUsers.filter(u => u.id !== socket.id);
-
         if (socket.roomId) {
             socket.to(socket.roomId).emit('user_left', '2nd person went Offline.');
-            
-            const clients = io.sockets.adapter.rooms.get(socket.roomId);
-            if (clients) {
-                for (const clientId of clients) {
-                    const remainingSocket = io.sockets.sockets.get(clientId);
-                    if (remainingSocket) {
-                        remainingSocket.leave(socket.roomId);
-                        delete remainingSocket.roomId;
-                    }
-                }
-            }
         }
     });
 });
