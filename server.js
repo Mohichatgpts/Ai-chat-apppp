@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 50e6,
+    maxHttpBufferSize: 50e6, // 50MB File Limit
     pingInterval: 5000,
     pingTimeout: 10000
 });
@@ -18,14 +18,13 @@ app.get('/', (req, res) => {
 
 let activeUsers = []; 
 let chatHistory = []; 
-let currentTitle = "Mohit the secret animator boy"; // डिफ़ॉल्ट नाम
+let currentTitle = "Mohit the secret animator boy";
 
 io.on('connection', (socket) => {
     if (!activeUsers.some(u => u.id === socket.id)) {
         activeUsers.push(socket);
     }
 
-    // यूजर को हिस्ट्री और करंट टाइटल भेजना
     socket.emit('load_history', chatHistory);
     socket.emit('title_updated', currentTitle);
 
@@ -44,7 +43,6 @@ io.on('connection', (socket) => {
         socket.emit('waiting', 'Waiting for someone to get online...');
     }
 
-    // नाम अपडेट करने का इवेंट
     socket.on('change_title', (newTitle) => {
         currentTitle = newTitle || "Secret Chat";
         io.emit('title_updated', currentTitle);
