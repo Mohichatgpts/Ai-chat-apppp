@@ -1,13 +1,17 @@
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+
+// Socket.io limit raised to 100MB to prevent crashes
+const io = require('socket.io')(http, {
+    maxHttpBufferSize: 1e8
+});
 const path = require('path');
 
 app.use(express.static(path.join(__dirname)));
 
 let chatHistory = [];
-let roomTitle = "🙂";
+let roomTitle = "Friend🙂";
 
 io.on('connection', (socket) => {
     socket.emit('title_updated', roomTitle);
@@ -46,7 +50,6 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('receive_reaction', data);
     });
 
-    // DELETE FOR EVERYONE
     socket.on('delete_message_everyone', (data) => {
         const index = chatHistory.findIndex(m => m.id === data.msgId);
         if (index !== -1) {
@@ -59,7 +62,6 @@ io.on('connection', (socket) => {
         io.emit('message_deleted_everyone', { msgId: data.msgId });
     });
 
-    // DELETE FOR ME (RAM सफाई 2 यूज़र्स के लिए)
     socket.on('delete_message_for_me', (data) => {
         const msg = chatHistory.find(m => m.id === data.msgId);
         if (msg) {
@@ -73,7 +75,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // CLEAR CHAT FOR ME
     socket.on('clear_chat_for_me', (data) => {
         chatHistory.forEach(msg => {
             if (!msg.deletedFor) msg.deletedFor = [];
