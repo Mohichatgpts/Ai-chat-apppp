@@ -18,13 +18,16 @@ app.get('/', (req, res) => {
 
 let activeUsers = []; 
 let chatHistory = []; 
+let currentTitle = "Mohit the secret animator boy"; // डिफ़ॉल्ट नाम
 
 io.on('connection', (socket) => {
     if (!activeUsers.some(u => u.id === socket.id)) {
         activeUsers.push(socket);
     }
 
+    // यूजर को हिस्ट्री और करंट टाइटल भेजना
     socket.emit('load_history', chatHistory);
+    socket.emit('title_updated', currentTitle);
 
     if (activeUsers.length >= 2) {
         const user1 = activeUsers[0];
@@ -40,6 +43,12 @@ io.on('connection', (socket) => {
     } else {
         socket.emit('waiting', 'Waiting for someone to get online...');
     }
+
+    // नाम अपडेट करने का इवेंट
+    socket.on('change_title', (newTitle) => {
+        currentTitle = newTitle || "Secret Chat";
+        io.emit('title_updated', currentTitle);
+    });
 
     function saveAndBroadcast(msgData, eventName) {
         chatHistory.push({ ...msgData, event: eventName });
