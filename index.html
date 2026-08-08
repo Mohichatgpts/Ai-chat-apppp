@@ -33,7 +33,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
-        /* Header Bar */
+        /* Top Header Bar */
         .chat-header {
             padding: 10px 16px;
             background-color: #ffffff;
@@ -83,7 +83,6 @@
             font-weight: bold;
         }
 
-        /* Top Settings & Notification Icons */
         .header-actions {
             display: flex;
             align-items: center;
@@ -99,14 +98,14 @@
             padding: 4px;
         }
 
-        /* Chat Body - Light Background */
+        /* Chat Body */
         .chat-messages {
             flex: 1;
             padding: 12px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
             background-color: #f0f2f5;
         }
 
@@ -156,11 +155,19 @@
 
         .delete-btn {
             position: absolute;
-            top: 2px;
-            right: 6px;
-            font-size: 11px;
-            opacity: 0.6;
+            top: -5px;
+            right: -5px;
+            background: #ff3b30;
+            color: #fff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
             cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
 
         .typing-indicator {
@@ -172,7 +179,7 @@
             background-color: #f0f2f5;
         }
 
-        /* Bottom Input Bar */
+        /* Bottom Bar */
         .chat-input-area {
             padding: 10px;
             background-color: #ffffff;
@@ -207,6 +214,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            border-radius: 50%;
+            transition: all 0.2s;
         }
 
         .send-btn {
@@ -218,8 +227,16 @@
             font-size: 15px;
         }
 
+        /* Blinking Red Animation for Mic Recording */
         .recording {
-            color: #fa3e3e;
+            color: #ff3b30 !important;
+            background-color: rgba(255, 59, 48, 0.15) !important;
+            animation: recordPulse 0.8s infinite alternate;
+        }
+
+        @keyframes recordPulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.25); opacity: 0.5; }
         }
 
         #imageInput {
@@ -230,7 +247,6 @@
 <body>
 
 <div class="chat-container">
-    <!-- Top Header Bar with Settings and Notification Buttons -->
     <div class="chat-header">
         <div class="header-left">
             <div class="avatar">✨</div>
@@ -240,21 +256,19 @@
             </div>
         </div>
         <div class="header-actions">
-            <button class="header-btn" title="Notification" onclick="alert('Notifications Active')">🔔</button>
+            <button class="header-btn" title="Clear All Chat" onclick="clearAllChat()">🗑️</button>
             <button class="header-btn" title="Settings" onclick="alert('Settings menu')">⚙️</button>
         </div>
     </div>
 
-    <!-- Message Body -->
     <div class="chat-messages" id="messageContainer"></div>
     <div class="typing-indicator" id="typingIndicator"></div>
 
-    <!-- Bottom Input Bar -->
     <div class="chat-input-area">
         <label for="imageInput" class="icon-btn">📷</label>
         <input type="file" id="imageInput" accept="image/*">
 
-        <button class="icon-btn" id="micBtn">🎙️</button>
+        <button class="icon-btn" id="micBtn" title="Record Audio">🎙️</button>
 
         <input type="text" class="input-box" id="msgInput" placeholder="Type a message..." autocomplete="off">
         
@@ -278,10 +292,20 @@
     let audioChunks = [];
     let isRecording = false;
 
+    // ऑटो-कनेक्ट जब स्क्रीन ऑन हो
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && !socket.connected) {
             socket.connect();
         }
+    });
+
+    // चैट हिस्ट्री लोड होना
+    socket.on('load_history', (history) => {
+        messageContainer.innerHTML = '';
+        history.forEach(item => {
+            const isSent = item.senderId === socket.id;
+            appendMessage(item, isSent ? 'sent' : 'received');
+        });
     });
 
     socket.on('waiting', () => {
@@ -299,11 +323,13 @@
         statusText.classList.remove('online');
     });
 
+    // टेक्स्ट मैसेज भेजना
     function sendMessage() {
         const text = msgInput.value.trim();
         if (text !== '') {
             const msgData = {
                 id: 'msg_' + Date.now(),
+                senderId: socket.id,
                 text: text,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
@@ -320,6 +346,7 @@
         if (e.key === 'Enter') sendMessage();
     });
 
+    // टाइपिंग इंडिकेटर
     msgInput.addEventListener('input', () => {
         socket.emit('typing');
         clearTimeout(typingTimeout);
@@ -340,6 +367,7 @@
         appendMessage(data, 'received');
     });
 
+    // फोटो भेजना
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -347,6 +375,7 @@
             reader.onload = function(event) {
                 const msgData = {
                     id: 'msg_' + Date.now(),
+                    senderId: socket.id,
                     image: event.target.result,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 };
@@ -361,6 +390,7 @@
         appendMessage(data, 'received');
     });
 
+    // माइक बटन क्लिक (रिकॉर्डिंग ब्लिंक के साथ)
     micBtn.addEventListener('click', async () => {
         if (!isRecording) {
             try {
@@ -376,6 +406,7 @@
                     reader.onload = function(event) {
                         const msgData = {
                             id: 'msg_' + Date.now(),
+                            senderId: socket.id,
                             audio: event.target.result,
                             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         };
@@ -387,14 +418,16 @@
 
                 mediaRecorder.start();
                 isRecording = true;
-                micBtn.classList.add('recording');
+                micBtn.classList.add('recording'); // रेड ब्लिंक शुरू
             } catch (err) {
-                alert('Microphone permission needed.');
+                alert('Microphone access is required to record voice messages.');
             }
         } else {
-            mediaRecorder.stop();
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
             isRecording = false;
-            micBtn.classList.remove('recording');
+            micBtn.classList.remove('recording'); // रेड ब्लिंक बंद
         }
     });
 
@@ -402,7 +435,10 @@
         appendMessage(data, 'received');
     });
 
+    // मैसेज रेंडर करना
     function appendMessage(data, type) {
+        if (document.getElementById(data.id)) return; // डुपिलकेट रोकना
+
         const msgDiv = document.createElement('div');
         msgDiv.classList.add('message', type);
         msgDiv.id = data.id;
@@ -413,18 +449,16 @@
         if (data.audio) contentHtml += `<audio controls src="${data.audio}"></audio>`;
 
         contentHtml += `<div class="msg-time">${data.time}</div>`;
-        
-        if (type === 'sent') {
-            contentHtml += `<span class="delete-btn" onclick="deleteMessage('${data.id}')">🗑️</span>`;
-        }
+        contentHtml += `<span class="delete-btn" onclick="deleteMessage('${data.id}')">✕</span>`;
 
         msgDiv.innerHTML = contentHtml;
         messageContainer.appendChild(msgDiv);
         messageContainer.scrollTop = messageContainer.scrollHeight;
     }
 
+    // एक मैसेज डिलीट
     window.deleteMessage = function(msgId) {
-        if (confirm('Delete this message?')) {
+        if (confirm('Delete this message for everyone?')) {
             const el = document.getElementById(msgId);
             if (el) el.remove();
             socket.emit('delete_for_everyone', msgId);
@@ -434,6 +468,17 @@
     socket.on('message_deleted', (msgId) => {
         const el = document.getElementById(msgId);
         if (el) el.remove();
+    });
+
+    // पूरी चैट डिलीट
+    window.clearAllChat = function() {
+        if (confirm('Delete ALL chat history for everyone?')) {
+            socket.emit('clear_all_chat');
+        }
+    };
+
+    socket.on('chat_cleared', () => {
+        messageContainer.innerHTML = '';
     });
 
     function escapeHtml(str) {
