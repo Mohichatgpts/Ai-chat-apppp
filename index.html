@@ -2,489 +2,203 @@
 <html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Secret Chat App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rooms - Secret Chat</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            background-color: #f0f2f5;
-            color: #1c1e21;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .chat-container {
-            width: 100%;
-            max-width: 480px;
-            height: 100vh;
-            background-color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        /* Top Header Bar */
-        .chat-header {
-            padding: 10px 16px;
-            background-color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #e4e6eb;
-            z-index: 10;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #0084ff, #00c6ff);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 18px;
-            color: #ffffff;
-        }
-
-        .header-info {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .header-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #050505;
-        }
-
-        .status-text {
-            font-size: 12px;
-            color: #65676b;
-        }
-
-        .status-text.online {
-            color: #31a24c;
-            font-weight: bold;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .header-btn {
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            color: #050505;
-            padding: 4px;
-        }
-
-        /* Chat Body */
-        .chat-messages {
-            flex: 1;
-            padding: 12px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            background-color: #f0f2f5;
-        }
-
-        .message {
-            max-width: 75%;
-            padding: 9px 13px;
-            border-radius: 18px;
-            font-size: 15px;
-            line-height: 1.4;
-            word-wrap: break-word;
-            position: relative;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-
-        .message.sent {
-            align-self: flex-end;
-            background-color: #0084ff;
-            color: #ffffff;
-            border-bottom-right-radius: 4px;
-        }
-
-        .message.received {
-            align-self: flex-start;
-            background-color: #e4e6eb;
-            color: #050505;
-            border-bottom-left-radius: 4px;
-        }
-
-        .message img {
-            max-width: 100%;
-            border-radius: 12px;
-            margin-top: 4px;
-            display: block;
-        }
-
-        .message audio {
-            max-width: 100%;
-            margin-top: 4px;
-        }
-
-        .msg-time {
-            font-size: 10px;
-            opacity: 0.7;
-            text-align: right;
-            margin-top: 3px;
-        }
-
-        .delete-btn {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #ff3b30;
-            color: #fff;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 10px;
-            cursor: pointer;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-        }
-
-        .typing-indicator {
-            font-size: 12px;
-            color: #0084ff;
-            font-style: italic;
-            padding: 2px 16px;
-            min-height: 18px;
-            background-color: #f0f2f5;
-        }
-
-        /* Bottom Bar */
-        .chat-input-area {
-            padding: 10px;
-            background-color: #ffffff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border-top: 1px solid #e4e6eb;
-        }
-
-        .input-box {
-            flex: 1;
-            background-color: #f0f2f5;
-            border: none;
-            outline: none;
-            padding: 10px 14px;
-            border-radius: 20px;
-            color: #050505;
-            font-size: 15px;
-        }
-
-        .input-box::placeholder {
-            color: #8a8d91;
-        }
-
-        .icon-btn {
-            background: none;
-            border: none;
-            color: #0084ff;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 6px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-radius: 50%;
-            transition: all 0.2s;
-        }
-
-        .send-btn {
-            background-color: #0084ff;
-            color: #ffffff;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            font-size: 15px;
-        }
-
-        /* Blinking Red Animation for Mic Recording */
-        .recording {
-            color: #ff3b30 !important;
-            background-color: rgba(255, 59, 48, 0.15) !important;
-            animation: recordPulse 0.8s infinite alternate;
-        }
-
-        @keyframes recordPulse {
-            0% { transform: scale(1); opacity: 1; }
-            100% { transform: scale(1.25); opacity: 0.5; }
-        }
-
-        #imageInput {
-            display: none;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; }
+        
+        /* Login Screen */
+        #loginScreen { width: 100%; max-width: 400px; margin: auto; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .login-title { text-align: center; margin-bottom: 20px; font-size: 22px; color: #0084ff; }
+        .input-field { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
+        .btn-join { width: 100%; padding: 12px; background: #0084ff; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        
+        /* Chat Container (Hidden by default) */
+        #chatContainer { display: none; width: 100%; max-width: 480px; height: 100vh; background: white; flex-direction: column; }
+        .chat-header { padding: 12px; background: white; display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; }
+        .header-title { font-weight: bold; font-size: 16px; }
+        .header-subtitle { font-size: 12px; color: #666; }
+        .chat-messages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f0f2f5; }
+        
+        .message { max-width: 75%; padding: 8px 12px; border-radius: 12px; font-size: 15px; position: relative; }
+        .message.sent { align-self: flex-end; background: #0084ff; color: white; border-bottom-right-radius: 2px; }
+        .message.received { align-self: flex-start; background: #e4e6eb; color: black; border-bottom-left-radius: 2px; }
+        .sender-name { font-size: 11px; font-weight: bold; margin-bottom: 3px; opacity: 0.8; }
+        
+        .sys-msg { text-align: center; font-size: 12px; color: #888; margin: 10px 0; }
+        
+        .message img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+        .message audio { max-width: 100%; margin-top: 5px; }
+        .delete-btn { position: absolute; top: -5px; right: -5px; background: #ff3b30; color: white; width: 18px; height: 18px; border-radius: 50%; text-align: center; font-size: 10px; line-height: 18px; cursor: pointer; }
+        
+        .chat-input-area { padding: 10px; display: flex; gap: 8px; background: white; border-top: 1px solid #ddd; }
+        .input-box { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ddd; outline: none; }
+        .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #0084ff; }
+        .send-btn { background: #0084ff; color: white; width: 36px; height: 36px; border-radius: 50%; font-size: 14px; }
+        .recording { color: #ff3b30 !important; animation: pulse 0.8s infinite alternate; }
+        @keyframes pulse { 0% { transform: scale(1); } 100% { transform: scale(1.2); opacity: 0.7; } }
+        #imageInput { display: none; }
     </style>
 </head>
 <body>
 
-<div class="chat-container">
+<!-- Login Screen -->
+<div id="loginScreen">
+    <h2 class="login-title">Join a Chat Room</h2>
+    <input type="text" id="username" class="input-field" placeholder="Your Name" required>
+    <input type="text" id="roomName" class="input-field" placeholder="Room Name (e.g. SecretZone)" required>
+    <input type="password" id="roomPass" class="input-field" placeholder="Room Password (Optional)">
+    <button class="btn-join" onclick="joinRoom()">Enter Room</button>
+</div>
+
+<!-- Chat Screen -->
+<div id="chatContainer">
     <div class="chat-header">
-        <div class="header-left">
-            <div class="avatar">✨</div>
-            <div class="header-info">
-                <div class="header-title">Mohit the secret animator boy</div>
-                <div class="status-text" id="statusText">Connecting...</div>
-            </div>
+        <div>
+            <div class="header-title" id="roomTitle">Room</div>
+            <div class="header-subtitle" id="userNameDisplay"></div>
         </div>
-        <div class="header-actions">
-            <button class="header-btn" title="Clear All Chat" onclick="clearAllChat()">🗑️</button>
-            <button class="header-btn" title="Settings" onclick="alert('Settings menu')">⚙️</button>
+        <div>
+            <button class="icon-btn" onclick="clearAllChat()">🗑️</button>
         </div>
     </div>
-
+    
     <div class="chat-messages" id="messageContainer"></div>
-    <div class="typing-indicator" id="typingIndicator"></div>
-
+    
     <div class="chat-input-area">
         <label for="imageInput" class="icon-btn">📷</label>
         <input type="file" id="imageInput" accept="image/*">
-
-        <button class="icon-btn" id="micBtn" title="Record Audio">🎙️</button>
-
-        <input type="text" class="input-box" id="msgInput" placeholder="Type a message..." autocomplete="off">
-        
+        <button class="icon-btn" id="micBtn">🎙️</button>
+        <input type="text" id="msgInput" class="input-box" placeholder="Type message...">
         <button class="icon-btn send-btn" id="sendBtn">➔</button>
     </div>
 </div>
 
 <script>
     const socket = io();
+    let myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
+    let myUsername = '';
 
-    const statusText = document.getElementById('statusText');
-    const messageContainer = document.getElementById('messageContainer');
-    const msgInput = document.getElementById('msgInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const imageInput = document.getElementById('imageInput');
-    const micBtn = document.getElementById('micBtn');
-    const typingIndicator = document.getElementById('typingIndicator');
-
-    let typingTimeout;
-    let mediaRecorder;
-    let audioChunks = [];
-    let isRecording = false;
-
-    // ऑटो-कनेक्ट जब स्क्रीन ऑन हो
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && !socket.connected) {
-            socket.connect();
-        }
-    });
-
-    // चैट हिस्ट्री लोड होना
-    socket.on('load_history', (history) => {
-        messageContainer.innerHTML = '';
-        history.forEach(item => {
-            const isSent = item.senderId === socket.id;
-            appendMessage(item, isSent ? 'sent' : 'received');
-        });
-    });
-
-    socket.on('waiting', () => {
-        statusText.innerText = 'Offline (Messages deliver when online)';
-        statusText.classList.remove('online');
-    });
-
-    socket.on('chat_start', () => {
-        statusText.innerText = '2nd person is Online';
-        statusText.classList.add('online');
-    });
-
-    socket.on('user_left', () => {
-        statusText.innerText = '2nd person went Offline';
-        statusText.classList.remove('online');
-    });
-
-    // टेक्स्ट मैसेज भेजना
-    function sendMessage() {
-        const text = msgInput.value.trim();
-        if (text !== '') {
-            const msgData = {
-                id: 'msg_' + Date.now(),
-                senderId: socket.id,
-                text: text,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-
-            appendMessage(msgData, 'sent');
-            socket.emit('send_message', msgData);
-            msgInput.value = '';
-            socket.emit('stop_typing');
-        }
+    function joinRoom() {
+        const uName = document.getElementById('username').value.trim();
+        const rName = document.getElementById('roomName').value.trim();
+        const rPass = document.getElementById('roomPass').value.trim();
+        
+        if(!uName || !rName) return alert("Name and Room Name are required!");
+        
+        myUsername = uName;
+        socket.emit('join_room', { username: uName, roomName: rName, password: rPass });
     }
 
-    sendBtn.addEventListener('click', sendMessage);
-    msgInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
+    socket.on('login_error', (msg) => alert(msg));
+
+    socket.on('login_success', (history) => {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'flex';
+        document.getElementById('roomTitle').innerText = document.getElementById('roomName').value;
+        document.getElementById('userNameDisplay').innerText = "Logged in as " + myUsername;
+        
+        const container = document.getElementById('messageContainer');
+        container.innerHTML = '';
+        history.forEach(item => appendMessage(item, item.userId === myUserId ? 'sent' : 'received'));
     });
 
-    // टाइपिंग इंडिकेटर
-    msgInput.addEventListener('input', () => {
-        socket.emit('typing');
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-            socket.emit('stop_typing');
-        }, 1500);
+    socket.on('system_message', (msg) => {
+        const div = document.createElement('div');
+        div.className = 'sys-msg';
+        div.innerText = msg;
+        document.getElementById('messageContainer').appendChild(div);
     });
 
-    socket.on('display_typing', () => {
-        typingIndicator.innerText = 'Typing...';
-    });
+    // Messages Logic
+    function sendMessage() {
+        const text = document.getElementById('msgInput').value.trim();
+        if (text) {
+            const data = { id: 'msg_'+Date.now(), userId: myUserId, text: text };
+            appendMessage({...data, senderName: myUsername}, 'sent');
+            socket.emit('send_message', data);
+            document.getElementById('msgInput').value = '';
+        }
+    }
+    
+    document.getElementById('sendBtn').onclick = sendMessage;
+    document.getElementById('msgInput').onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
 
-    socket.on('hide_typing', () => {
-        typingIndicator.innerText = '';
-    });
+    socket.on('receive_message', (data) => appendMessage(data, 'received'));
 
-    socket.on('receive_message', (data) => {
-        appendMessage(data, 'received');
-    });
-
-    // फोटो भेजना
-    imageInput.addEventListener('change', (e) => {
+    // Image Logic
+    document.getElementById('imageInput').onchange = function(e) {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(event) {
-                const msgData = {
-                    id: 'msg_' + Date.now(),
-                    senderId: socket.id,
-                    image: event.target.result,
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                };
-                appendMessage(msgData, 'sent');
-                socket.emit('send_image', msgData);
+            reader.onload = (event) => {
+                const data = { id: 'msg_'+Date.now(), userId: myUserId, image: event.target.result };
+                appendMessage({...data, senderName: myUsername}, 'sent');
+                socket.emit('send_image', data);
             };
             reader.readAsDataURL(file);
         }
-    });
+    };
+    socket.on('receive_image', (data) => appendMessage(data, 'received'));
 
-    socket.on('receive_image', (data) => {
-        appendMessage(data, 'received');
-    });
-
-    // माइक बटन क्लिक (रिकॉर्डिंग ब्लिंक के साथ)
-    micBtn.addEventListener('click', async () => {
+    // Audio Logic
+    let mediaRecorder, audioChunks = [], isRecording = false;
+    document.getElementById('micBtn').onclick = async function() {
+        const btn = this;
         if (!isRecording) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
-
-                mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
-
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                 mediaRecorder.onstop = () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    stream.getTracks().forEach(t => t.stop());
                     const reader = new FileReader();
-                    reader.onload = function(event) {
-                        const msgData = {
-                            id: 'msg_' + Date.now(),
-                            senderId: socket.id,
-                            audio: event.target.result,
-                            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        };
-                        appendMessage(msgData, 'sent');
-                        socket.emit('send_audio', msgData);
+                    reader.onload = e => {
+                        const data = { id: 'msg_'+Date.now(), userId: myUserId, audio: e.target.result };
+                        appendMessage({...data, senderName: myUsername}, 'sent');
+                        socket.emit('send_audio', data);
                     };
-                    reader.readAsDataURL(audioBlob);
+                    reader.readAsDataURL(new Blob(audioChunks));
                 };
-
                 mediaRecorder.start();
                 isRecording = true;
-                micBtn.classList.add('recording'); // रेड ब्लिंक शुरू
-            } catch (err) {
-                alert('Microphone access is required to record voice messages.');
-            }
+                btn.classList.add('recording');
+            } catch(e) { alert("Mic permission needed"); }
         } else {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-            }
+            mediaRecorder.stop();
             isRecording = false;
-            micBtn.classList.remove('recording'); // रेड ब्लिंक बंद
+            btn.classList.remove('recording');
         }
-    });
+    };
+    socket.on('receive_audio', (data) => appendMessage(data, 'received'));
 
-    socket.on('receive_audio', (data) => {
-        appendMessage(data, 'received');
-    });
-
-    // मैसेज रेंडर करना
     function appendMessage(data, type) {
-        if (document.getElementById(data.id)) return; // डुपिलकेट रोकना
-
+        if(document.getElementById(data.id)) return;
         const msgDiv = document.createElement('div');
-        msgDiv.classList.add('message', type);
+        msgDiv.className = `message ${type}`;
         msgDiv.id = data.id;
 
-        let contentHtml = '';
-        if (data.text) contentHtml += `<div>${escapeHtml(data.text)}</div>`;
-        if (data.image) contentHtml += `<img src="${data.image}" alt="Image">`;
-        if (data.audio) contentHtml += `<audio controls src="${data.audio}"></audio>`;
+        let html = '';
+        if(type === 'received' && data.senderName) html += `<div class="sender-name">${data.senderName}</div>`;
+        if(data.text) html += `<div>${data.text}</div>`;
+        if(data.image) html += `<img src="${data.image}">`;
+        if(data.audio) html += `<audio controls src="${data.audio}"></audio>`;
+        html += `<span class="delete-btn" onclick="deleteMessage('${data.id}')">✕</span>`;
 
-        contentHtml += `<div class="msg-time">${data.time}</div>`;
-        contentHtml += `<span class="delete-btn" onclick="deleteMessage('${data.id}')">✕</span>`;
-
-        msgDiv.innerHTML = contentHtml;
-        messageContainer.appendChild(msgDiv);
-        messageContainer.scrollTop = messageContainer.scrollHeight;
+        msgDiv.innerHTML = html;
+        const container = document.getElementById('messageContainer');
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
     }
 
-    // एक मैसेज डिलीट
-    window.deleteMessage = function(msgId) {
-        if (confirm('Delete this message for everyone?')) {
-            const el = document.getElementById(msgId);
-            if (el) el.remove();
-            socket.emit('delete_for_everyone', msgId);
-        }
-    };
+    window.deleteMessage = (id) => { socket.emit('delete_for_everyone', id); document.getElementById(id)?.remove(); };
+    socket.on('message_deleted', (id) => document.getElementById(id)?.remove());
 
-    socket.on('message_deleted', (msgId) => {
-        const el = document.getElementById(msgId);
-        if (el) el.remove();
-    });
-
-    // पूरी चैट डिलीट
-    window.clearAllChat = function() {
-        if (confirm('Delete ALL chat history for everyone?')) {
-            socket.emit('clear_all_chat');
-        }
-    };
-
-    socket.on('chat_cleared', () => {
-        messageContainer.innerHTML = '';
-    });
-
-    function escapeHtml(str) {
-        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
+    window.clearAllChat = () => { if(confirm("Clear room chat?")) socket.emit('clear_all_chat'); };
+    socket.on('chat_cleared', () => document.getElementById('messageContainer').innerHTML = '');
 </script>
-
 </body>
 </html>
