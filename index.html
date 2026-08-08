@@ -54,7 +54,7 @@
         @keyframes recordPulse { 0% { transform: scale(1); } 100% { transform: scale(1.2); } }
         #imageInput { display: none; }
 
-        /* Full Screen Phone Image Viewer */
+        /* Mobile Image Viewer Overlay */
         .img-viewer-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; display: none; flex-direction: column; z-index: 2000; touch-action: none; }
         .img-viewer-header { padding: 14px 16px; background: rgba(0,0,0,0.8); display: flex; justify-content: space-between; align-items: center; color: #fff; z-index: 2001; }
         .img-viewer-body { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; width: 100%; height: 100%; }
@@ -212,6 +212,7 @@
 
     socket.on('receive_image', (data) => appendMessage(data, 'received'));
 
+    // VOICE MESSAGE FIXED
     micBtn.addEventListener('click', async () => {
         if (!isRecording) {
             try {
@@ -237,7 +238,7 @@
                         appendMessage(msgData, 'sent');
                         socket.emit('send_audio', msgData);
                     };
-                    reader.readAsDataURL(event.target.result || audioBlob);
+                    reader.readAsDataURL(audioBlob); // ✅ बग फिक्स किया गया
                 };
                 mediaRecorder.start();
                 isRecording = true;
@@ -252,6 +253,7 @@
 
     socket.on('receive_audio', (data) => appendMessage(data, 'received'));
 
+    function escapeHtml(str) { return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
     function formatText(str) { return escapeHtml(str).replace(/\n/g, '<br>'); }
 
     function appendMessage(data, type) {
@@ -278,7 +280,6 @@
 
         if (data.reaction) setReaction(msgDiv, data.reaction, true);
 
-        // फोटो पर टच करने पर फुल-स्क्रीन व्यूअर
         const imgElement = msgDiv.querySelector('.chat-img-thumb');
         if (imgElement) {
             imgElement.addEventListener('click', (e) => {
@@ -287,7 +288,6 @@
             });
         }
 
-        // DOUBLE TAP FOR REACTION
         let lastTap = 0;
         msgDiv.addEventListener('touchend', (e) => {
             const currentTime = new Date().getTime();
@@ -299,7 +299,6 @@
             lastTap = currentTime;
         });
 
-        // LONG PRESS FOR DELETE
         let longPressTimer;
         const startLongPress = () => {
             if (msgDiv.classList.contains('deleted-msg')) return;
@@ -440,7 +439,6 @@
     }
 
     function closeModal() { document.getElementById('customModal').style.display = 'none'; }
-    function escapeHtml(str) { return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
     /* PHONE PINCH-TO-ZOOM & DOWNLOADING LOGIC */
     const fullImg = document.getElementById('fullImage');
@@ -472,17 +470,14 @@
         fullImg.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentScale})`;
     }
 
-    // PHONE TOUCH PINCH-ZOOM & DRAG
     imgViewerBody.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
-            // Pinch Zoom
             startTouchDistance = Math.hypot(
                 e.touches[0].clientX - e.touches[1].clientX,
                 e.touches[0].clientY - e.touches[1].clientY
             );
             initialScale = currentScale;
         } else if (e.touches.length === 1 && currentScale > 1) {
-            // Drag / Pan
             startTouchX = e.touches[0].clientX;
             startTouchY = e.touches[0].clientY;
             initialX = currentX;
@@ -509,14 +504,23 @@
         }
     });
 
-    // PHONE DOWNLOAD PHOTO FIX
-    downloadPhotoBtn.addEventListener('click', () => {
-        const link = document.createElement('a');
-        link.href = fullImg.src;
-        link.download = 'chat_photo_' + Date.now() + '.jpg';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    // PHONE DOWNLOAD PHOTO FIX (BLOB DRIVEN FOR IOS & ANDROID)
+    downloadPhotoBtn.addEventListener('click', async () => {
+        try {
+            const response = await fetch(fullImg.src);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = 'chat_photo_' + Date.now() + '.jpg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        } catch (e) {
+            window.open(fullImg.src, '_blank');
+        }
     });
 </script>
 
