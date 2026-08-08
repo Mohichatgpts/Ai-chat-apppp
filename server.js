@@ -7,15 +7,13 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Public folder से static files सर्व करने का सही तरीका
-app.use(express.static(path.join(__dirname, 'public')));
+// Bina public folder ke index.html aur doosri files load karne ke liye
+app.use(express.static(__dirname));
 
-// रूट URL पर index.html भेजना
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// चैट डेटा मेमोरी
 let chatHistory = [];
 let connectedUsers = 0;
 let roomTitle = "Mohit the secret animator boy";
