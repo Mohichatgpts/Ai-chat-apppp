@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>WhatsApp Chat</title>
+    <title>Chat App</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * {
@@ -18,7 +18,7 @@
             height: 100%;
             width: 100%;
             overflow: hidden;
-            background-color: #0b141a;
+            background-color: #f2f2f7;
             display: flex;
             justify-content: center;
         }
@@ -27,21 +27,21 @@
             width: 100%;
             max-width: 500px;
             height: 100%;
-            background-color: #0b141a;
+            background-color: #f2f2f7;
             display: flex;
             flex-direction: column;
             position: relative;
         }
 
-        /* WhatsApp Header */
+        /* Top Header */
         .chat-header {
-            padding: 10px 14px;
-            background-color: #1f2c34;
+            padding: 12px 16px;
+            background-color: #ffffff;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            color: #e9edef;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            color: #000000;
+            border-bottom: 1px solid #e5e5ea;
             z-index: 20;
         }
 
@@ -49,98 +49,114 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            flex: 1;
         }
 
         .avatar {
-            width: 42px;
-            height: 42px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            background: #6b7c85;
+            background: linear-gradient(135deg, #007aff, #00c6ff);
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 20px;
+            font-size: 18px;
             color: #ffffff;
+            flex-shrink: 0;
         }
 
         .header-info {
             display: flex;
             flex-direction: column;
+            flex: 1;
         }
 
-        .header-title {
+        /* Editable Title Input */
+        .header-title-input {
             font-size: 16px;
             font-weight: 600;
-            color: #e9edef;
+            color: #000000;
+            border: none;
+            outline: none;
+            background: transparent;
+            width: 100%;
+            padding: 2px 0;
+        }
+
+        .header-title-input:focus {
+            background: #f0f0f5;
+            border-radius: 4px;
         }
 
         .status-text {
-            font-size: 13px;
-            color: #8696a0;
+            font-size: 12px;
+            color: #8e8e93;
         }
 
         .status-text.online {
-            color: #00a884;
+            color: #34c759;
             font-weight: 500;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 16px;
         }
 
         .header-btn {
             background: none;
             border: none;
-            font-size: 18px;
+            font-size: 20px;
             cursor: pointer;
-            color: #aebac1;
+            color: #007aff;
             padding: 4px;
         }
 
-        /* WhatsApp Chat Wallpaper Body */
+        /* Chat Wallpaper Body */
         .chat-messages {
             flex: 1;
-            padding: 12px 16px;
+            padding: 16px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            background-color: #0b141a;
-            background-image: radial-gradient(#1f2c34 1px, transparent 1px);
-            background-size: 16px 16px;
+            gap: 10px;
+            background-color: #f2f2f7;
+        }
+
+        .date-badge {
+            align-self: center;
+            background-color: #e5e5ea;
+            color: #8e8e93;
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
         }
 
         .message {
-            max-width: 80%;
-            padding: 8px 12px;
-            border-radius: 8px;
+            max-width: 78%;
+            padding: 10px 14px;
+            border-radius: 18px;
             font-size: 15px;
             line-height: 1.4;
             word-wrap: break-word;
             position: relative;
-            box-shadow: 0 1px 1px rgba(0,0,0,0.15);
-            white-space: pre-wrap; /* इंटर/न्यू-लाइन सपोर्ट के लिए */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            white-space: pre-wrap;
         }
 
         .message.sent {
             align-self: flex-end;
-            background-color: #005c4b;
-            color: #e9edef;
-            border-top-right-radius: 0;
+            background-color: #007aff;
+            color: #ffffff;
+            border-bottom-right-radius: 4px;
         }
 
         .message.received {
             align-self: flex-start;
-            background-color: #202c33;
-            color: #e9edef;
-            border-top-left-radius: 0;
+            background-color: #ffffff;
+            color: #000000;
+            border-bottom-left-radius: 4px;
         }
 
         .message img {
             max-width: 100%;
-            border-radius: 6px;
+            border-radius: 12px;
             margin-top: 4px;
             display: block;
         }
@@ -155,58 +171,59 @@
             align-items: center;
             justify-content: flex-end;
             gap: 4px;
-            margin-top: 2px;
+            margin-top: 4px;
         }
 
         .msg-time {
-            font-size: 11px;
-            color: #8696a0;
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .message.sent .msg-time {
+            color: #ffffff;
+        }
+
+        .message.received .msg-time {
+            color: #8e8e93;
         }
 
         .delete-btn {
             background: transparent;
-            color: #8696a0;
+            color: #8e8e93;
             border: none;
-            font-size: 12px;
+            font-size: 11px;
             cursor: pointer;
-            padding: 2px 4px;
-            opacity: 0.6;
-            transition: 0.2s;
-        }
-
-        .delete-btn:hover {
-            opacity: 1;
-            color: #f15c6d;
+            padding: 0 2px;
         }
 
         .typing-indicator {
-            font-size: 13px;
-            color: #00a884;
+            font-size: 12px;
+            color: #007aff;
             font-style: italic;
             padding: 4px 16px;
-            min-height: 22px;
-            background-color: #0b141a;
+            min-height: 20px;
+            background-color: #f2f2f7;
         }
 
-        /* WhatsApp Standard Input Bar */
+        /* Input Area */
         .chat-input-area {
-            padding: 8px 10px;
-            background-color: #1f2c34;
+            padding: 10px 12px;
+            background-color: #ffffff;
             display: flex;
             align-items: flex-end;
             gap: 8px;
+            border-top: 1px solid #e5e5ea;
             z-index: 30;
-            position: relative;
         }
 
         .input-container {
             flex: 1;
-            background-color: #2a3942;
-            border-radius: 24px;
+            background-color: #f2f2f7;
+            border-radius: 20px;
             display: flex;
             align-items: center;
             padding: 4px 12px;
-            min-height: 44px;
+            min-height: 40px;
         }
 
         .input-box {
@@ -214,37 +231,37 @@
             background: transparent;
             border: none;
             outline: none;
-            color: #e9edef;
+            color: #000000;
             font-size: 15px;
             max-height: 100px;
             resize: none;
-            padding: 8px 0;
+            padding: 6px 0;
             line-height: 20px;
         }
 
         .input-box::placeholder {
-            color: #8696a0;
+            color: #8e8e93;
         }
 
         .icon-btn {
             background: none;
             border: none;
-            color: #8696a0;
+            color: #007aff;
             font-size: 20px;
             cursor: pointer;
-            padding: 6px;
+            padding: 4px;
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
         .send-btn {
-            background-color: #00a884;
+            background-color: #007aff;
             color: #ffffff;
-            width: 44px;
-            height: 44px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
-            font-size: 18px;
+            font-size: 16px;
             flex-shrink: 0;
             border: none;
             cursor: pointer;
@@ -254,7 +271,7 @@
         }
 
         .recording {
-            color: #ea4335 !important;
+            color: #ff3b30 !important;
             animation: recordPulse 0.8s infinite alternate;
         }
 
@@ -267,11 +284,11 @@
             display: none;
         }
 
-        /* Beautiful Custom Popup / Modal (Clean & Modern) */
+        /* Custom Popup */
         .modal-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.4);
             display: none;
             justify-content: center;
             align-items: center;
@@ -279,25 +296,24 @@
         }
 
         .modal-card {
-            background: #222e35;
+            background: #ffffff;
             padding: 20px;
-            border-radius: 12px;
+            border-radius: 14px;
             width: 85%;
-            max-width: 340px;
-            color: #e9edef;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 320px;
+            color: #000000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
 
         .modal-title {
-            font-size: 16px;
-            font-weight: bold;
+            font-size: 17px;
+            font-weight: 600;
             margin-bottom: 8px;
-            color: #e9edef;
         }
 
         .modal-body {
             font-size: 14px;
-            color: #8696a0;
+            color: #8e8e93;
             margin-bottom: 20px;
         }
 
@@ -310,16 +326,15 @@
         .modal-btn {
             background: transparent;
             border: none;
-            color: #00a884;
-            font-size: 14px;
+            color: #007aff;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             padding: 6px 12px;
-            border-radius: 4px;
         }
 
         .modal-btn.danger {
-            color: #f15c6d;
+            color: #ff3b30;
         }
     </style>
 </head>
@@ -329,19 +344,20 @@
     <!-- Header -->
     <div class="chat-header">
         <div class="header-left">
-            <div class="avatar">👤</div>
+            <div class="avatar">✨</div>
             <div class="header-info">
-                <div class="header-title">Mohit the secret animator boy</div>
+                <!-- Editable Header Name -->
+                <input type="text" class="header-title-input" id="headerTitle" title="Click to edit name" value="Mohit the secret animator boy">
                 <div class="status-text" id="statusText">Connecting...</div>
             </div>
         </div>
-        <div class="header-actions">
-            <button class="header-btn" title="Clear All Chat" onclick="confirmClearAll()">🗑️</button>
-        </div>
+        <button class="header-btn" title="Clear Chat" onclick="confirmClearAll()">🗑️</button>
     </div>
 
-    <!-- Messages Window -->
-    <div class="chat-messages" id="messageContainer"></div>
+    <!-- Messages Area -->
+    <div class="chat-messages" id="messageContainer">
+        <div class="date-badge">Today</div>
+    </div>
     <div class="typing-indicator" id="typingIndicator"></div>
 
     <!-- Input Footer -->
@@ -350,19 +366,19 @@
             <textarea class="input-box" id="msgInput" rows="1" placeholder="Type a message..."></textarea>
             <label for="imageInput" class="icon-btn">📷</label>
             <input type="file" id="imageInput" accept="image/*">
-            <button class="icon-btn" id="micBtn" title="Record Audio">🎙️</button>
+            <button class="icon-btn" id="micBtn" title="Record Voice">🎙️</button>
         </div>
         <button class="send-btn" id="sendBtn">➔</button>
     </div>
 
-    <!-- WhatsApp Style Custom Delete Modal -->
+    <!-- Modal -->
     <div class="modal-overlay" id="customModal">
         <div class="modal-card">
             <div class="modal-title" id="modalTitle">Delete message?</div>
-            <div class="modal-body" id="modalBody">You can delete messages for everyone in this chat.</div>
+            <div class="modal-body" id="modalBody">This message will be deleted for everyone.</div>
             <div class="modal-actions">
                 <button class="modal-btn" onclick="closeModal()">Cancel</button>
-                <button class="modal-btn danger" id="modalConfirmBtn">Delete for everyone</button>
+                <button class="modal-btn danger" id="modalConfirmBtn">Delete</button>
             </div>
         </div>
     </div>
@@ -377,6 +393,7 @@
         localStorage.setItem('chat_user_id', myUserId);
     }
 
+    const headerTitle = document.getElementById('headerTitle');
     const statusText = document.getElementById('statusText');
     const messageContainer = document.getElementById('messageContainer');
     const msgInput = document.getElementById('msgInput');
@@ -392,15 +409,17 @@
     let audioStream = null;
     let targetDeleteId = null;
 
-    // ऑटो-कनेक्ट
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && !socket.connected) {
-            socket.connect();
-        }
+    // एडिटेबल नाम चेंज इवेंट
+    headerTitle.addEventListener('change', () => {
+        socket.emit('change_title', headerTitle.value);
+    });
+
+    socket.on('title_updated', (newTitle) => {
+        headerTitle.value = newTitle;
     });
 
     socket.on('load_history', (history) => {
-        messageContainer.innerHTML = '';
+        messageContainer.innerHTML = '<div class="date-badge">Today</div>';
         history.forEach(item => {
             const isSent = item.userId === myUserId;
             appendMessage(item, isSent ? 'sent' : 'received');
@@ -408,7 +427,7 @@
     });
 
     socket.on('waiting', () => {
-        statusText.innerText = 'Waiting for someone...';
+        statusText.innerText = 'Waiting...';
         statusText.classList.remove('online');
     });
 
@@ -422,7 +441,6 @@
         statusText.classList.remove('online');
     });
 
-    // ऑटो टेक्स्टएरिया हाइट (WhatsApp Style)
     msgInput.addEventListener('input', function() {
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
@@ -430,13 +448,6 @@
         socket.emit('typing');
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(() => socket.emit('stop_typing'), 1500);
-    });
-
-    // Enter पर अगली लाइन, केवल Click पर सेंड
-    msgInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            // केवल स्थान छोड़ें (Space/Enter), सेंड न करें
-        }
     });
 
     function sendMessage() {
@@ -465,7 +476,6 @@
 
     socket.on('receive_message', (data) => appendMessage(data, 'received'));
 
-    // फोटो अपलोड
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -486,7 +496,6 @@
 
     socket.on('receive_image', (data) => appendMessage(data, 'received'));
 
-    // वॉइस रिकॉर्डिंग
     micBtn.addEventListener('click', async () => {
         if (!isRecording) {
             try {
@@ -510,14 +519,14 @@
                         appendMessage(msgData, 'sent');
                         socket.emit('send_audio', msgData);
                     };
-                    reader.readAsDataURL(audioBlob);
+                    reader.readAsDataURL(file);
                 };
 
                 mediaRecorder.start();
                 isRecording = true;
                 micBtn.classList.add('recording');
             } catch (err) {
-                alert('Microphone access required.');
+                alert('Microphone permission needed.');
             }
         } else {
             if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
@@ -528,7 +537,6 @@
 
     socket.on('receive_audio', (data) => appendMessage(data, 'received'));
 
-    // मैसेज दिखाना
     function appendMessage(data, type) {
         if (document.getElementById(data.id)) return;
 
@@ -544,7 +552,7 @@
         contentHtml += `
             <div class="msg-footer">
                 <span class="msg-time">${data.time}</span>
-                <button class="delete-btn" onclick="openDeleteModal('${data.id}')">🗑️</button>
+                <button class="delete-btn" onclick="openDeleteModal('${data.id}')">✕</button>
             </div>`;
 
         msgDiv.innerHTML = contentHtml;
@@ -552,11 +560,10 @@
         messageContainer.scrollTop = messageContainer.scrollHeight;
     }
 
-    // सुंदर WhatsApp Style Popups
     function openDeleteModal(msgId) {
         targetDeleteId = msgId;
         document.getElementById('modalTitle').innerText = 'Delete message?';
-        document.getElementById('modalBody').innerText = 'This message will be deleted for everyone in this chat.';
+        document.getElementById('modalBody').innerText = 'This message will be deleted for everyone.';
         
         const confirmBtn = document.getElementById('modalConfirmBtn');
         confirmBtn.onclick = function() {
@@ -570,8 +577,8 @@
     }
 
     function confirmClearAll() {
-        document.getElementById('modalTitle').innerText = 'Clear this chat?';
-        document.getElementById('modalBody').innerText = 'All messages in this chat will be deleted for everyone.';
+        document.getElementById('modalTitle').innerText = 'Clear chat?';
+        document.getElementById('modalBody').innerText = 'All messages will be cleared for everyone.';
         
         const confirmBtn = document.getElementById('modalConfirmBtn');
         confirmBtn.onclick = function() {
@@ -592,7 +599,7 @@
     });
 
     socket.on('chat_cleared', () => {
-        messageContainer.innerHTML = '';
+        messageContainer.innerHTML = '<div class="date-badge">Today</div>';
     });
 
     function escapeHtml(str) {
