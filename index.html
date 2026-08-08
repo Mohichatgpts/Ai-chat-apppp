@@ -177,7 +177,6 @@
             color: #667781;
         }
 
-        /* REACTION PILL BELOW MESSAGE */
         .reaction-pill {
             position: absolute;
             bottom: -10px;
@@ -191,10 +190,8 @@
             z-index: 10;
         }
 
-        /* FLOATING REACTION PICKER BAR */
         .reaction-picker {
             position: absolute;
-            top: -42px;
             background: #ffffff;
             border-radius: 20px;
             padding: 3px 8px;
@@ -204,6 +201,14 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.25);
             z-index: 100;
             animation: popUp 0.15s ease-out;
+        }
+
+        .reaction-picker.pos-top {
+            top: -42px;
+        }
+
+        .reaction-picker.pos-bottom {
+            bottom: -42px;
         }
 
         .reaction-picker.sent-picker {
@@ -320,7 +325,6 @@
             display: none;
         }
 
-        /* PHOTO VIEWER */
         .img-viewer-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -591,18 +595,29 @@
 
     socket.on('receive_image', (data) => appendMessage(data, 'received'));
 
+    // SAFARI / IPHONE AUDIOMIME COMPATIBILITY
     micBtn.addEventListener('click', async () => {
         if (!isRecording) {
             try {
                 audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(audioStream);
+                
+                let options = {};
+                if (MediaRecorder.isTypeSupported('audio/webm')) {
+                    options = { mimeType: 'audio/webm' };
+                } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                    options = { mimeType: 'audio/mp4' };
+                } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+                    options = { mimeType: 'audio/aac' };
+                }
+
+                mediaRecorder = new MediaRecorder(audioStream, options);
                 audioChunks = [];
 
                 mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
 
                 mediaRecorder.onstop = () => {
                     if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/mp4' });
                     const reader = new FileReader();
                     reader.onload = function(event) {
                         const msgData = {
@@ -655,10 +670,27 @@
 
         msgDiv.innerHTML = contentHtml;
 
-        // DOUBLE CLICK TO SHOW REACTION BAR WITH + OPTION
+        // पेज रीलोड पर हिस्ट्री से पुराना रिएक्शन रेंडर करना
+        if (data.reaction) {
+            setReaction(msgDiv, data.reaction, true);
+        }
+
+        // डेस्कटॉप के लिए डबल क्लिक
         msgDiv.addEventListener('dblclick', (e) => {
             e.stopPropagation();
             showReactionPicker(msgDiv);
+        });
+
+        // मोबाइल टच स्क्रीन के लिए कस्टम डबल टैप लॉजिक
+        let lastTap = 0;
+        msgDiv.addEventListener('touchend', (e) => {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 300 && tapLength > 0) {
+                e.preventDefault();
+                showReactionPicker(msgDiv);
+            }
+            lastTap = currentTime;
         });
 
         messageContainer.appendChild(msgDiv);
@@ -669,7 +701,12 @@
         if (activePicker) activePicker.remove();
 
         const picker = document.createElement('div');
-        picker.className = 'reaction-picker ' + (msgDiv.classList.contains('sent') ? 'sent-picker' : 'received-picker');
+        
+        // चेक करें कि मैसेज स्क्रीन में बहुत ऊपर तो नहीं है
+        const rect = msgDiv.getBoundingClientRect();
+        const posClass = (rect.top < 100) ? 'pos-bottom' : 'pos-top';
+
+        picker.className = `reaction-picker ${posClass} ` + (msgDiv.classList.contains('sent') ? 'sent-picker' : 'received-picker');
         
         const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '😡', '🙂', '➕'];
 
@@ -680,7 +717,7 @@
             btn.onclick = (e) => {
                 e.stopPropagation();
                 if (emoji === '➕') {
-                    const customEmoji = prompt('अपने कीबोर्ड से कोई भी इमोजी चुनें या टाइप करें:', '🔥');
+                    const customEmoji = prompt('कीबोर्ड से कोई इमोजी चुनें:', '🔥');
                     if (customEmoji && customEmoji.trim() !== '') {
                         setReaction(msgDiv, customEmoji.trim());
                     }
@@ -697,19 +734,37 @@
         activePicker = picker;
     }
 
-    function setReaction(msgDiv, emoji) {
+    function setReaction(msgDiv, emoji, isRemote = false) {
         let reaction = msgDiv.querySelector('.reaction-pill');
         if (!reaction) {
             reaction = document.createElement('div');
             reaction.className = 'reaction-pill';
             msgDiv.appendChild(reaction);
         }
-        if (reaction.innerText === emoji) {
+
+        if (reaction.innerText === emoji && !isRemote) {
             reaction.remove();
+            socket.emit('send_reaction', { msgId: msgDiv.id, emoji: '' });
         } else {
             reaction.innerText = emoji;
+            if (!isRemote) {
+                socket.emit('send_reaction', { msgId: msgDiv.id, emoji: emoji });
+            }
         }
     }
+
+    // सामने वाले यूज़र का रिएक्शन रिसीव करने के लिए
+    socket.on('receive_reaction', (data) => {
+        const msgDiv = document.getElementById(data.msgId);
+        if (msgDiv) {
+            if (data.emoji === '') {
+                let reaction = msgDiv.querySelector('.reaction-pill');
+                if (reaction) reaction.remove();
+            } else {
+                setReaction(msgDiv, data.emoji, true);
+            }
+        }
+    });
 
     document.addEventListener('click', () => {
         if (activePicker) {
@@ -739,7 +794,7 @@
         return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    /* PHOTO ZOOM, DRAG & DOWNLOAD LOGIC */
+    /* PHOTO ZOOM & DOWNLOAD LOGIC */
     let currentZoom = 1;
     let translateX = 0;
     let translateY = 0;
