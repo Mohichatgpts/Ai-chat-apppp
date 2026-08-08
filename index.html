@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>WhatsApp Lite</title>
+    <title>WhatsApp Chat</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * {
@@ -27,13 +27,12 @@
             width: 100%;
             max-width: 500px;
             height: 100%;
-            background-color: #efeae2; /* Authentic WhatsApp light wallpaper color */
+            background-color: #efeae2;
             display: flex;
             flex-direction: column;
             position: relative;
         }
 
-        /* HEADER SECTION */
         .chat-header {
             padding: 10px 14px;
             background-color: #008069;
@@ -98,7 +97,6 @@
             padding: 6px;
         }
 
-        /* CHAT MESSAGES AREA */
         .chat-messages {
             flex: 1;
             padding: 12px 14px;
@@ -121,7 +119,6 @@
             font-weight: 500;
         }
 
-        /* MESSAGE BUBBLES */
         .message {
             max-width: 80%;
             width: max-content;
@@ -137,19 +134,18 @@
 
         .message.sent {
             align-self: flex-end;
-            background-color: #e7fce3; /* WhatsApp Sent Bubble */
+            background-color: #e7fce3;
             color: #111b21;
             border-radius: 8px 0px 8px 8px;
         }
 
         .message.received {
             align-self: flex-start;
-            background-color: #ffffff; /* WhatsApp Received Bubble */
+            background-color: #ffffff;
             color: #111b21;
             border-radius: 0px 8px 8px 8px;
         }
 
-        /* Image Thumbnail in Message */
         .message img.chat-img-thumb {
             max-width: 100%;
             max-height: 240px;
@@ -165,7 +161,6 @@
             margin-top: 4px;
         }
 
-        /* Message Footer */
         .msg-footer {
             display: flex;
             align-items: center;
@@ -183,7 +178,7 @@
 
         .ticks {
             font-size: 11px;
-            color: #53bdeb; /* WhatsApp Double Blue Tick */
+            color: #53bdeb;
             font-weight: bold;
         }
 
@@ -197,7 +192,6 @@
             margin-left: 2px;
         }
 
-        /* Message Reaction Pill */
         .reaction-pill {
             position: absolute;
             bottom: -8px;
@@ -218,7 +212,6 @@
             background-color: #efeae2;
         }
 
-        /* CHAT INPUT AREA */
         .chat-input-area {
             padding: 8px 10px;
             background-color: #f0f2f5;
@@ -297,7 +290,6 @@
             display: none;
         }
 
-        /* WHATSAPP FULL SCREEN IMAGE ZOOM MODAL */
         .img-viewer-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -353,7 +345,6 @@
             cursor: pointer;
         }
 
-        /* DELETE / CLEAR DIALOG */
         .modal-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -418,7 +409,6 @@
                 <div class="status-text" id="statusText">Connecting...</div>
             </div>
         </div>
-        <!-- Clear Chat Icon -->
         <button class="header-btn" title="Clear Chat for me" onclick="confirmClearForMe()">🗑️</button>
     </div>
 
@@ -437,7 +427,6 @@
         <button class="send-btn" id="sendBtn">➤</button>
     </div>
 
-    <!-- Clear Chat Modal -->
     <div class="modal-overlay" id="customModal">
         <div class="modal-card">
             <div class="modal-title" id="modalTitle">Clear chat?</div>
@@ -450,7 +439,6 @@
     </div>
 </div>
 
-<!-- FULLSCREEN PHOTO ZOOM / PAN VIEWER -->
 <div class="img-viewer-overlay" id="imageViewer">
     <div class="img-viewer-header">
         <span>Photo View</span>
@@ -547,7 +535,6 @@
 
     socket.on('receive_message', (data) => appendMessage(data, 'received'));
 
-    // Image Upload
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -568,7 +555,6 @@
 
     socket.on('receive_image', (data) => appendMessage(data, 'received'));
 
-    // Voice Recorder
     micBtn.addEventListener('click', async () => {
         if (!isRecording) {
             try {
@@ -610,7 +596,6 @@
 
     socket.on('receive_audio', (data) => appendMessage(data, 'received'));
 
-    // Message Rendering
     function appendMessage(data, type) {
         if (document.getElementById(data.id)) return;
 
@@ -634,7 +619,6 @@
 
         msgDiv.innerHTML = contentHtml;
 
-        // Double Click Reaction Feature
         msgDiv.addEventListener('dblclick', () => {
             let reaction = msgDiv.querySelector('.reaction-pill');
             if (!reaction) {
@@ -651,16 +635,14 @@
         messageContainer.scrollTop = messageContainer.scrollHeight;
     }
 
-    // Delete single message for ME only
     function deleteForMe(msgId) {
         const el = document.getElementById(msgId);
         if (el) el.remove();
     }
 
-    // Clear ALL Chat for ME only
     function confirmClearForMe() {
         document.getElementById('modalTitle').innerText = 'Clear chat?';
-        document.getElementById('modalBody').innerText = 'This will clear all messages from your device only. Other user will keep their chat history.';
+        document.getElementById('modalBody').innerText = 'This will clear all messages from your device only.';
         
         const confirmBtn = document.getElementById('modalConfirmBtn');
         confirmBtn.onclick = function() {
@@ -679,7 +661,6 @@
         return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    /* WHATSAPP PHOTO ZOOM & PAN FUNCTIONALITY */
     let currentZoom = 1;
     const fullImg = document.getElementById('fullImage');
     const imgOverlay = document.getElementById('imageViewer');
