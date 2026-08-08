@@ -5,87 +5,75 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { maxHttpBufferSize: 50e6 });
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+const io = new Server(server, {
+    maxHttpBufferSize: 50e6,
+    pingInterval: 5000,
+    pingTimeout: 10000
+});
 
-// रूम्स और उनका डेटा स्टोर करने के लिए
-const chatRooms = {}; 
-const MASTER_PASSWORD = "secret"; // एडमिन (आप) के लिए मास्टर पासवर्ड
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+let activeUsers = []; 
+let chatHistory = []; 
 
 io.on('connection', (socket) => {
-    
-    // यूजर जब रूम जॉइन करे
-    socket.on('join_room', ({ username, roomName, password }) => {
-        // अगर रूम पहले से नहीं है, तो नया बनाओ
-        if (!chatRooms[roomName]) {
-            chatRooms[roomName] = {
-                password: password, // जो पहला इंसान आएगा, वो पासवर्ड सेट करेगा
-                history: [],
-                users: []
-            };
-        } else {
-            // अगर रूम है, तो पासवर्ड चेक करो (मास्टर पासवर्ड से भी एंट्री मिलेगी)
-            const roomPass = chatRooms[roomName].password;
-            if (roomPass !== "" && roomPass !== password && password !== MASTER_PASSWORD) {
-                socket.emit('login_error', 'Wrong Room Password!');
-                return;
-            }
-        }
+    if (!activeUsers.some(u => u.id === socket.id)) {
+        activeUsers.push(socket);
+    }
 
-        // सक्सेसफुल जॉइन
-        socket.join(roomName);
-        socket.username = username;
-        socket.roomName = roomName;
+    socket.emit('load_history', chatHistory);
 
-        chatRooms[roomName].users.push({ id: socket.id, name: username });
-
-        socket.emit('login_success', chatRooms[roomName].history);
+    if (activeUsers.length >= 2) {
+        const user1 = activeUsers[0];
+        const user2 = activeUsers[1];
+        const roomId = `room_${user1.id}_${user2.id}`;
         
-        // सबको बताओ कौन आया
-        io.to(roomName).emit('system_message', `${username} joined the room!`);
-    });
+        user1.join(roomId);
+        user2.join(roomId);
+        user1.roomId = roomId;
+        user2.roomId = roomId;
 
-    // मैसेज सेव और ब्रॉडकास्ट
+        io.to(roomId).emit('chat_start', 'Online');
+    } else {
+        socket.emit('waiting', 'Waiting for someone to get online...');
+    }
+
     function saveAndBroadcast(msgData, eventName) {
-        if (!socket.roomName) return;
-        const room = chatRooms[socket.roomName];
-        
-        const finalMsg = { ...msgData, event: eventName, senderName: socket.username };
-        room.history.push(finalMsg);
-        
-        socket.to(socket.roomName).emit(eventName, finalMsg);
+        chatHistory.push({ ...msgData, event: eventName });
+        if (socket.roomId) {
+            socket.to(socket.roomId).emit(eventName, msgData);
+        }
     }
 
     socket.on('send_message', (data) => saveAndBroadcast(data, 'receive_message'));
     socket.on('send_image', (data) => saveAndBroadcast(data, 'receive_image'));
     socket.on('send_audio', (data) => saveAndBroadcast(data, 'receive_audio'));
 
-    // मैसेज डिलीट
     socket.on('delete_for_everyone', (msgId) => {
-        if (!socket.roomName) return;
-        let room = chatRooms[socket.roomName];
-        room.history = room.history.filter(m => m.id !== msgId);
-        io.to(socket.roomName).emit('message_deleted', msgId);
+        chatHistory = chatHistory.filter(m => m.id !== msgId);
+        io.emit('message_deleted', msgId);
     });
 
-    // रूम की पूरी चैट साफ़ करना
     socket.on('clear_all_chat', () => {
-        if (!socket.roomName) return;
-        chatRooms[socket.roomName].history = [];
-        io.to(socket.roomName).emit('chat_cleared');
+        chatHistory = [];
+        io.emit('chat_cleared');
+    });
+
+    socket.on('typing', () => {
+        if (socket.roomId) socket.to(socket.roomId).emit('display_typing');
+    });
+
+    socket.on('stop_typing', () => {
+        if (socket.roomId) socket.to(socket.roomId).emit('hide_typing');
     });
 
     socket.on('disconnect', () => {
-        if (socket.roomName && chatRooms[socket.roomName]) {
-            let room = chatRooms[socket.roomName];
-            room.users = room.users.filter(u => u.id !== socket.id);
-            io.to(socket.roomName).emit('system_message', `${socket.username} left the room.`);
-            
-            // अगर रूम खाली हो गया, तो रूम डिलीट कर दो (मेमोरी बचाने के लिए)
-            if (room.users.length === 0) {
-                delete chatRooms[socket.roomName];
-            }
+        activeUsers = activeUsers.filter(u => u.id !== socket.id);
+        if (socket.roomId) {
+            socket.to(socket.roomId).emit('user_left', 'Offline');
         }
     });
 });
