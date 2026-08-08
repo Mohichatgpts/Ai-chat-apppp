@@ -5,85 +5,70 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
+const io = new Server(server);
 
-const io = new Server(server, {
-    maxHttpBufferSize: 50e6, // 50MB File Limit
-    pingInterval: 5000,
-    pingTimeout: 10000
-});
+// Static files (HTML, CSS, JS) serve करने के लिए
+app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-let activeUsers = []; 
-let chatHistory = []; 
-let currentTitle = "Mohit the secret animator boy";
+// चैट की हिस्ट्री स्टोर करने के लिए ऐरे (Array)
+let chatHistory = [];
+let connectedUsers = 0;
+let roomTitle = "Mohit the secret animator boy";
 
 io.on('connection', (socket) => {
-    if (!activeUsers.some(u => u.id === socket.id)) {
-        activeUsers.push(socket);
-    }
-
+    connectedUsers++;
+    
+    // नए यूजर के जुड़ने पर पुरानी हिस्ट्री और टाइटल भेजें
+    socket.emit('title_updated', roomTitle);
     socket.emit('load_history', chatHistory);
-    socket.emit('title_updated', currentTitle);
 
-    if (activeUsers.length >= 2) {
-        const user1 = activeUsers[0];
-        const user2 = activeUsers[1];
-        const roomId = `room_${user1.id}_${user2.id}`;
-        
-        user1.join(roomId);
-        user2.join(roomId);
-        user1.roomId = roomId;
-        user2.roomId = roomId;
-
-        io.to(roomId).emit('chat_start', 'Online');
+    if (connectedUsers >= 2) {
+        io.emit('chat_start');
     } else {
-        socket.emit('waiting', 'Waiting for someone to get online...');
+        socket.emit('waiting');
     }
 
+    // 1. नाम/टाइटल बदलना
     socket.on('change_title', (newTitle) => {
-        currentTitle = newTitle || "Secret Chat";
-        io.emit('title_updated', currentTitle);
+        roomTitle = newTitle;
+        io.emit('title_updated', roomTitle);
     });
 
-    function saveAndBroadcast(msgData, eventName) {
-        chatHistory.push({ ...msgData, event: eventName });
-        if (socket.roomId) {
-            socket.to(socket.roomId).emit(eventName, msgData);
-        }
-    }
-
-    socket.on('send_message', (data) => saveAndBroadcast(data, 'receive_message'));
-    socket.on('send_image', (data) => saveAndBroadcast(data, 'receive_image'));
-    socket.on('send_audio', (data) => saveAndBroadcast(data, 'receive_audio'));
-
-    socket.on('delete_for_everyone', (msgId) => {
-        chatHistory = chatHistory.filter(m => m.id !== msgId);
-        io.emit('message_deleted', msgId);
+    // 2. टेक्स्ट मैसेज भेजना
+    socket.on('send_message', (data) => {
+        chatHistory.push(data); // सर्वर पर सेव रहेगा
+        socket.broadcast.emit('receive_message', data); // केवल दूसरे यूजर को भेजें
     });
 
-    socket.on('clear_all_chat', () => {
-        chatHistory = [];
-        io.emit('chat_cleared');
+    // 3. फोटो भेजना
+    socket.on('send_image', (data) => {
+        chatHistory.push(data);
+        socket.broadcast.emit('receive_image', data);
     });
 
+    // 4. वॉइस ऑडियो भेजना
+    socket.on('send_audio', (data) => {
+        chatHistory.push(data);
+        socket.broadcast.emit('receive_audio', data);
+    });
+
+    // 5. टाइपिंग इंडिकेटर
     socket.on('typing', () => {
-        if (socket.roomId) socket.to(socket.roomId).emit('display_typing');
+        socket.broadcast.emit('display_typing');
     });
 
     socket.on('stop_typing', () => {
-        if (socket.roomId) socket.to(socket.roomId).emit('hide_typing');
+        socket.broadcast.emit('hide_typing');
     });
 
+    // डिसकनेक्ट होने पर
     socket.on('disconnect', () => {
-        activeUsers = activeUsers.filter(u => u.id !== socket.id);
-        if (socket.roomId) {
-            socket.to(socket.roomId).emit('user_left', 'Offline');
-        }
+        connectedUsers--;
+        io.emit('user_left');
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
