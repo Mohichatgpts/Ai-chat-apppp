@@ -124,12 +124,16 @@
             width: max-content;
             padding: 6px 10px 8px 10px;
             font-size: 14.5px;
-            line-height: 1.35;
-            word-wrap: break-word;
-            word-break: break-word;
-            overflow-wrap: anywhere;
+            line-height: 1.4;
             position: relative;
             box-shadow: 0 1px 0.5px rgba(11,20,26,0.13);
+        }
+
+        /* TEXT PARAGRAPH & MULTI-LINE FIX */
+        .msg-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+            display: block;
         }
 
         .message.sent {
@@ -162,13 +166,14 @@
         }
 
         .msg-footer {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: flex-end;
             gap: 3px;
             margin-top: 2px;
             float: right;
             margin-left: 10px;
+            white-space: nowrap;
         }
 
         .msg-time {
@@ -182,16 +187,6 @@
             font-weight: bold;
         }
 
-        .delete-btn {
-            background: transparent;
-            color: #8696a0;
-            border: none;
-            font-size: 10px;
-            cursor: pointer;
-            padding: 0 2px;
-            margin-left: 2px;
-        }
-
         .reaction-pill {
             position: absolute;
             bottom: -8px;
@@ -199,8 +194,10 @@
             background: #ffffff;
             border-radius: 10px;
             padding: 1px 4px;
-            font-size: 11px;
+            font-size: 13px;
             box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            white-space: normal;
+            user-select: none;
         }
 
         .typing-indicator {
@@ -227,7 +224,7 @@
             border-radius: 24px;
             display: flex;
             align-items: center;
-            padding: 4px 12px;
+            padding: 4px 10px;
             min-height: 42px;
         }
 
@@ -290,6 +287,7 @@
             display: none;
         }
 
+        /* FULLSCREEN PHOTO VIEWER */
         .img-viewer-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -302,7 +300,7 @@
 
         .img-viewer-header {
             padding: 12px 16px;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.7);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -317,21 +315,28 @@
             align-items: center;
             overflow: hidden;
             position: relative;
+            cursor: grab;
+        }
+
+        .img-viewer-body:active {
+            cursor: grabbing;
         }
 
         .img-viewer-body img {
-            max-width: 100%;
-            max-height: 100%;
+            max-width: 90%;
+            max-height: 90%;
             transition: transform 0.1s ease-out;
             user-select: none;
+            transform-origin: center center;
         }
 
         .img-viewer-controls {
-            padding: 12px;
-            background: rgba(0,0,0,0.6);
+            padding: 14px;
+            background: rgba(0,0,0,0.7);
             display: flex;
             justify-content: center;
-            gap: 20px;
+            align-items: center;
+            gap: 12px;
             z-index: 1001;
         }
 
@@ -339,10 +344,14 @@
             background: rgba(255,255,255,0.2);
             color: #ffffff;
             border: none;
-            padding: 8px 16px;
+            padding: 8px 14px;
             border-radius: 20px;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .modal-overlay {
@@ -409,7 +418,7 @@
                 <div class="status-text" id="statusText">Connecting...</div>
             </div>
         </div>
-        <button class="header-btn" title="Clear Chat for me" onclick="confirmClearForMe()">🗑️</button>
+        <button class="header-btn" title="Clear Chat" onclick="confirmClearForMe()">🗑️</button>
     </div>
 
     <div class="chat-messages" id="messageContainer">
@@ -419,6 +428,7 @@
 
     <div class="chat-input-area">
         <div class="input-container">
+            <button class="icon-btn" id="emojiQuickBtn" title="Add 🙂 Emoji" onclick="insertEmoji('🙂')">🙂</button>
             <textarea class="input-box" id="msgInput" rows="1" placeholder="Message"></textarea>
             <label for="imageInput" class="icon-btn" title="Send Photo">📷</label>
             <input type="file" id="imageInput" accept="image/*">
@@ -430,7 +440,7 @@
     <div class="modal-overlay" id="customModal">
         <div class="modal-card">
             <div class="modal-title" id="modalTitle">Clear chat?</div>
-            <div class="modal-body" id="modalBody">This will clear messages from your device only.</div>
+            <div class="modal-body" id="modalBody">This will clear all messages from your device.</div>
             <div class="modal-actions">
                 <button class="modal-btn" onclick="closeModal()">CANCEL</button>
                 <button class="modal-btn danger" id="modalConfirmBtn">CLEAR CHAT</button>
@@ -448,9 +458,10 @@
         <img id="fullImage" src="" alt="Full View">
     </div>
     <div class="img-viewer-controls">
-        <button class="img-btn" onclick="zoomImage(-0.25)">🔍 -</button>
+        <button class="img-btn" onclick="zoomImage(-0.3)">🔍 -</button>
         <button class="img-btn" onclick="resetZoom()">Reset</button>
-        <button class="img-btn" onclick="zoomImage(0.25)">🔍 +</button>
+        <button class="img-btn" onclick="zoomImage(0.3)">🔍 +</button>
+        <a id="downloadPhotoBtn" class="img-btn" href="#" download="chat_photo.jpg">📥 Download</a>
     </div>
 </div>
 
@@ -489,17 +500,9 @@
         });
     });
 
-    socket.on('waiting', () => {
-        statusText.innerText = 'offline';
-    });
-
-    socket.on('chat_start', () => {
-        statusText.innerText = 'online';
-    });
-
-    socket.on('user_left', () => {
-        statusText.innerText = 'offline';
-    });
+    socket.on('waiting', () => statusText.innerText = 'offline');
+    socket.on('chat_start', () => statusText.innerText = 'online');
+    socket.on('user_left', () => statusText.innerText = 'offline');
 
     msgInput.addEventListener('input', function() {
         this.style.height = 'auto';
@@ -508,6 +511,11 @@
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(() => socket.emit('stop_typing'), 1500);
     });
+
+    function insertEmoji(emoji) {
+        msgInput.value += emoji;
+        msgInput.focus();
+    }
 
     function sendMessage() {
         const text = msgInput.value.trim();
@@ -596,6 +604,10 @@
 
     socket.on('receive_audio', (data) => appendMessage(data, 'received'));
 
+    function formatText(str) {
+        return escapeHtml(str).replace(/\n/g, '<br>');
+    }
+
     function appendMessage(data, type) {
         if (document.getElementById(data.id)) return;
 
@@ -604,7 +616,7 @@
         msgDiv.id = data.id;
 
         let contentHtml = '';
-        if (data.text) contentHtml += `<span>${escapeHtml(data.text)}</span>`;
+        if (data.text) contentHtml += `<span class="msg-text">${formatText(data.text)}</span>`;
         if (data.image) contentHtml += `<img class="chat-img-thumb" src="${data.image}" onclick="openImageViewer('${data.image}')" alt="Photo">`;
         if (data.audio) contentHtml += `<audio controls src="${data.audio}"></audio>`;
 
@@ -614,17 +626,17 @@
             <div class="msg-footer">
                 <span class="msg-time">${data.time}</span>
                 ${tickHtml}
-                <button class="delete-btn" title="Delete for me" onclick="deleteForMe('${data.id}')">✕</button>
             </div>`;
 
         msgDiv.innerHTML = contentHtml;
 
+        // DOUBLE CLICK TO RECT WITH 🙂 EMOJI
         msgDiv.addEventListener('dblclick', () => {
             let reaction = msgDiv.querySelector('.reaction-pill');
             if (!reaction) {
                 reaction = document.createElement('div');
                 reaction.className = 'reaction-pill';
-                reaction.innerText = '❤️';
+                reaction.innerText = '🙂';
                 msgDiv.appendChild(reaction);
             } else {
                 reaction.remove();
@@ -635,14 +647,9 @@
         messageContainer.scrollTop = messageContainer.scrollHeight;
     }
 
-    function deleteForMe(msgId) {
-        const el = document.getElementById(msgId);
-        if (el) el.remove();
-    }
-
     function confirmClearForMe() {
         document.getElementById('modalTitle').innerText = 'Clear chat?';
-        document.getElementById('modalBody').innerText = 'This will clear all messages from your device only.';
+        document.getElementById('modalBody').innerText = 'This will clear all messages from your device.';
         
         const confirmBtn = document.getElementById('modalConfirmBtn');
         confirmBtn.onclick = function() {
@@ -661,12 +668,21 @@
         return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
+    /* PHOTO ZOOM, DRAG & DOWNLOAD LOGIC */
     let currentZoom = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let isDragging = false;
+    let startX = 0, startY = 0;
+
     const fullImg = document.getElementById('fullImage');
     const imgOverlay = document.getElementById('imageViewer');
+    const downloadBtn = document.getElementById('downloadPhotoBtn');
+    const imgBody = document.getElementById('imgViewerBody');
 
     function openImageViewer(src) {
         fullImg.src = src;
+        downloadBtn.href = src;
         imgOverlay.style.display = 'flex';
         resetZoom();
     }
@@ -675,14 +691,53 @@
         imgOverlay.style.display = 'none';
     }
 
+    function updateTransform() {
+        fullImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+    }
+
     function zoomImage(amount) {
-        currentZoom = Math.max(0.5, Math.min(4, currentZoom + amount));
-        fullImg.style.transform = `scale(${currentZoom})`;
+        currentZoom = Math.max(0.8, Math.min(5, currentZoom + amount));
+        if (currentZoom === 1) {
+            translateX = 0;
+            translateY = 0;
+        }
+        updateTransform();
     }
 
     function resetZoom() {
         currentZoom = 1;
-        fullImg.style.transform = 'scale(1)';
+        translateX = 0;
+        translateY = 0;
+        updateTransform();
+    }
+
+    imgBody.addEventListener('mousedown', startDrag);
+    imgBody.addEventListener('touchstart', (e) => startDrag(e.touches[0]));
+
+    window.addEventListener('mousemove', drag);
+    window.addEventListener('touchmove', (e) => drag(e.touches[0]));
+
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('touchend', endDrag);
+
+    function startDrag(e) {
+        if (currentZoom > 1) {
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+        }
+    }
+
+    function drag(e) {
+        if (isDragging && currentZoom > 1) {
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateTransform();
+        }
+    }
+
+    function endDrag() {
+        isDragging = false;
     }
 </script>
 
