@@ -1,43 +1,80 @@
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
+const fs = require('fs');
+const path = require('path');
 
-// Socket.io limit raised to 100MB to prevent crashes
+// Socket.io limit raised to 100MB for safe file transfers
 const io = require('socket.io')(http, {
     maxHttpBufferSize: 1e8
 });
-const path = require('path');
 
 app.use(express.static(path.join(__dirname)));
 
+const DATA_FILE = path.join(__dirname, 'chat_data.json');
 let chatHistory = [];
-let roomTitle = "Friend🙂";
+let roomTitle = "🙂";
+
+// 1. सर्वर शुरू होते ही पुरानी सेव्ड चैट फाइल लोड करें
+function loadSavedData() {
+    if (fs.existsSync(DATA_FILE)) {
+        try {
+            const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+            const parsed = JSON.parse(rawData);
+            chatHistory = parsed.chatHistory || [];
+            roomTitle = parsed.roomTitle || "🙂";
+            console.log(`✅ Loaded ${chatHistory.length} messages from permanent storage.`);
+        } catch (err) {
+            console.error("Error reading storage file:", err);
+        }
+    }
+}
+
+// 2. हर नए मैसेज या बदलाव पर फाइल में ऑटो-सेव करें
+function saveToStorage() {
+    try {
+        const dataToSave = {
+            roomTitle: roomTitle,
+            chatHistory: chatHistory
+        };
+        fs.writeFileSync(DATA_FILE, JSON.stringify(dataToSave, null, 2), 'utf8');
+    } catch (err) {
+        console.error("Error saving data:", err);
+    }
+}
+
+loadSavedData();
 
 io.on('connection', (socket) => {
+    // यूजर के कनेक्ट होते ही पूरी हिस्ट्री भेजें
     socket.emit('title_updated', roomTitle);
     socket.emit('load_history', chatHistory);
     socket.broadcast.emit('chat_start');
 
     socket.on('change_title', (newTitle) => {
         roomTitle = newTitle;
+        saveToStorage();
         io.emit('title_updated', roomTitle);
     });
 
     socket.on('send_message', (data) => {
         data.deletedFor = [];
         chatHistory.push(data);
+        saveToStorage();
         socket.broadcast.emit('receive_message', data);
     });
 
     socket.on('send_image', (data) => {
         data.deletedFor = [];
         chatHistory.push(data);
+        saveToStorage();
         socket.broadcast.emit('receive_image', data);
     });
 
     socket.on('send_audio', (data) => {
         data.deletedFor = [];
         chatHistory.push(data);
+        saveToStorage();
         socket.broadcast.emit('receive_audio', data);
     });
 
@@ -46,7 +83,10 @@ io.on('connection', (socket) => {
 
     socket.on('send_reaction', (data) => {
         const msg = chatHistory.find(m => m.id === data.msgId);
-        if (msg) msg.reaction = data.emoji;
+        if (msg) {
+            msg.reaction = data.emoji;
+            saveToStorage();
+        }
         socket.broadcast.emit('receive_reaction', data);
     });
 
@@ -58,6 +98,7 @@ io.on('connection', (socket) => {
             delete chatHistory[index].image;
             delete chatHistory[index].audio;
             delete chatHistory[index].reaction;
+            saveToStorage();
         }
         io.emit('message_deleted_everyone', { msgId: data.msgId });
     });
@@ -72,6 +113,7 @@ io.on('connection', (socket) => {
             if (msg.deletedFor.length >= 2) {
                 chatHistory = chatHistory.filter(m => m.id !== data.msgId);
             }
+            saveToStorage();
         }
     });
 
@@ -83,6 +125,7 @@ io.on('connection', (socket) => {
             }
         });
         chatHistory = chatHistory.filter(msg => msg.deletedFor.length < 2);
+        saveToStorage();
     });
 
     socket.on('disconnect', () => socket.broadcast.emit('user_left'));
