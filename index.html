@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>WhatsApp Chat</title>
+    <title>WhatsApp Private Chat</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -142,16 +142,13 @@
     const clearBtn = document.getElementById('clearBtn');
 
     let typingTimeout, mediaRecorder, audioChunks = [], isRecording = false, audioStream = null, activePicker = null;
-    let historyLoadedOnce = false;
 
     headerTitle.addEventListener('change', () => socket.emit('change_title', headerTitle.value));
     socket.on('title_updated', (newTitle) => headerTitle.value = newTitle);
 
+    // पूरी चैट हिस्ट्री हमेशा सर्वर से लोड होगी
     socket.on('load_history', (history) => {
-        if (!historyLoadedOnce) {
-            messageContainer.innerHTML = '<div class="date-badge">TODAY</div>';
-            historyLoadedOnce = true;
-        }
+        messageContainer.innerHTML = '<div class="date-badge">TODAY</div>';
         history.forEach(item => {
             if (!item.deletedFor || !item.deletedFor.includes(myUserId)) {
                 const isSent = item.userId === myUserId;
@@ -160,6 +157,7 @@
         });
     });
 
+    socket.on('connect', () => statusText.innerText = 'online');
     socket.on('waiting', () => statusText.innerText = 'offline');
     socket.on('chat_start', () => statusText.innerText = 'online');
     socket.on('user_left', () => statusText.innerText = 'offline');
@@ -194,7 +192,6 @@
     socket.on('hide_typing', () => typingIndicator.innerText = '');
     socket.on('receive_message', (data) => appendMessage(data, 'received'));
 
-    // IMAGE COMPRESSION TO PREVENT OVERLOAD & DISCONNECT
     function compressImage(file, callback) {
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -471,7 +468,6 @@
 
     function closeModal() { document.getElementById('customModal').style.display = 'none'; }
 
-    /* PHONE PINCH-TO-ZOOM & DOWNLOADING LOGIC */
     const fullImg = document.getElementById('fullImage');
     const imgOverlay = document.getElementById('imageViewer');
     const downloadPhotoBtn = document.getElementById('downloadPhotoBtn');
