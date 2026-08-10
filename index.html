@@ -7,21 +7,25 @@
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-        html, body { height: 100%; width: 100%; overflow: hidden; background-color: #008069; display: flex; justify-content: center; }
-        .chat-container { width: 100%; max-width: 500px; height: 100%; background-color: #efeae2; display: flex; flex-direction: column; position: relative; }
         
-        .chat-header { padding: 10px 14px; background-color: #008069; display: flex; align-items: center; justify-content: space-between; color: #fff; z-index: 20; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        /* Fixed Body position so mobile keyboard won't scroll the entire page */
+        html, body { height: 100%; width: 100%; overflow: hidden; background-color: #008069; display: flex; justify-content: center; position: fixed; top: 0; left: 0; right: 0; bottom: 0; }
+        
+        .chat-container { width: 100%; max-width: 500px; height: 100%; height: 100dvh; background-color: #efeae2; display: flex; flex-direction: column; position: relative; }
+        
+        /* Flex shrink 0 stops header from squishing or sliding away */
+        .chat-header { padding: 10px 14px; background-color: #008069; display: flex; align-items: center; justify-content: space-between; color: #fff; z-index: 20; box-shadow: 0 1px 3px rgba(0,0,0,0.2); flex-shrink: 0; }
         .header-left { display: flex; align-items: center; gap: 10px; flex: 1; }
         .avatar { width: 38px; height: 38px; border-radius: 50%; background-color: #dfe5e7; display: flex; justify-content: center; align-items: center; font-size: 20px; flex-shrink: 0; }
         .header-info { display: flex; flex-direction: column; flex: 1; }
         .header-title-input { font-size: 18px; font-weight: 600; color: #fff; border: none; outline: none; background: transparent; width: 100%; }
-        .status-text { font-size: 11px; color: #d1f4cc; }
+        .status-text { font-size: 12px; color: #d1f4cc; min-height: 15px; font-weight: 400; transition: color 0.2s ease; }
         .header-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #fff; padding: 6px; }
 
-        .chat-messages { flex: 1; padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-color: #efeae2; }
+        .chat-messages { flex: 1; min-height: 0; padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-color: #efeae2; }
         .date-badge { align-self: center; background-color: #fff; color: #54656f; font-size: 11px; padding: 5px 12px; border-radius: 8px; margin-bottom: 6px; box-shadow: 0 1px 1px rgba(11,20,26,0.1); font-weight: 500; }
         
-        .message { max-width: 80%; width: max-content; padding: 6px 10px 8px 10px; font-size: 14.5px; line-height: 1.4; position: relative; box-shadow: 0 1px 0.5px rgba(11,20,26,0.13); user-select: none; }
+        .message { max-width: 80%; width: max-content; padding: 6px 10px 8px 10px; font-size: 14.5px; line-height: 1.4; position: relative; box-shadow: 0 1px 0.5px rgba(11,20,26,0.13); user-select: none; cursor: pointer; }
         .msg-text { white-space: pre-wrap; word-break: break-word; display: block; }
         .message.sent { align-self: flex-end; background-color: #e7fce3; color: #111b21; border-radius: 8px 0px 8px 8px; }
         .message.received { align-self: flex-start; background-color: #fff; color: #111b21; border-radius: 0px 8px 8px 8px; }
@@ -39,17 +43,16 @@
         .reaction-picker.pos-bottom { bottom: -42px; }
         .reaction-picker.sent-picker { right: 0; }
         .reaction-picker.received-picker { left: 0; }
-        .react-btn { background: none; border: none; font-size: 18px; padding: 2px 4px; border-radius: 50%; }
+        .react-btn { background: none; border: none; font-size: 18px; padding: 2px 4px; border-radius: 50%; cursor: pointer; }
         @keyframes popUp { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-        .typing-indicator { font-size: 12px; color: #008069; font-style: italic; padding: 2px 14px; min-height: 18px; background-color: #efeae2; }
         
-        .chat-input-area { padding: 8px 10px; background-color: #f0f2f5; display: flex; align-items: center; gap: 6px; z-index: 30; }
+        /* Flex shrink 0 keeps input panel grounded at bottom */
+        .chat-input-area { padding: 8px 10px; background-color: #f0f2f5; display: flex; align-items: center; gap: 6px; z-index: 30; flex-shrink: 0; }
         .input-container { flex: 1; background-color: #fff; border-radius: 24px; display: flex; align-items: center; padding: 4px 12px; min-height: 42px; }
         .input-box { flex: 1; background: transparent; border: none; outline: none; color: #111b21; font-size: 15px; max-height: 100px; resize: none; padding: 6px 0; line-height: 20px; }
         .input-box::placeholder { color: #8696a0; }
-        .icon-btn { background: none; border: none; color: #54656f; font-size: 20px; padding: 4px; display: flex; justify-content: center; align-items: center; }
-        .send-btn { background-color: #00a884; color: #fff; width: 42px; height: 42px; border-radius: 50%; font-size: 18px; flex-shrink: 0; border: none; display: flex; justify-content: center; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+        .icon-btn { background: none; border: none; color: #54656f; font-size: 20px; padding: 4px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .send-btn { background-color: #00a884; color: #fff; width: 42px; height: 42px; border-radius: 50%; font-size: 18px; flex-shrink: 0; border: none; display: flex; justify-content: center; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.2); cursor: pointer; }
         .recording { color: #ea0038 !important; animation: recordPulse 0.8s infinite alternate; }
         @keyframes recordPulse { 0% { transform: scale(1); } 100% { transform: scale(1.2); } }
         #imageInput { display: none; }
@@ -59,14 +62,14 @@
         .img-viewer-body { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; width: 100%; height: 100%; }
         .img-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center center; transition: transform 0.05s linear; }
         .img-viewer-controls { padding: 14px; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; gap: 12px; z-index: 2001; }
-        .img-btn { background: rgba(255,255,255,0.2); color: #fff; border: none; padding: 10px 18px; border-radius: 20px; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+        .img-btn { background: rgba(255,255,255,0.2); color: #fff; border: none; padding: 10px 18px; border-radius: 20px; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 
         .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); display: none; justify-content: center; align-items: center; z-index: 1500; }
         .modal-card { background: #fff; padding: 22px; border-radius: 16px; width: 85%; max-width: 310px; color: #111b21; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
         .modal-title { font-size: 17px; font-weight: 600; margin-bottom: 10px; }
         .modal-body { font-size: 14px; color: #667781; margin-bottom: 20px; line-height: 1.4; }
         .modal-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
-        .modal-btn { background: transparent; border: none; color: #008069; font-size: 14px; font-weight: 600; padding: 6px 10px; border-radius: 6px; }
+        .modal-btn { background: transparent; border: none; color: #008069; font-size: 14px; font-weight: 600; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
         .modal-btn.danger { color: #ea0038; }
     </style>
 </head>
@@ -78,7 +81,7 @@
             <div class="avatar">👤</div>
             <div class="header-info">
                 <input type="text" class="header-title-input" id="headerTitle" value="🙂">
-                <div class="status-text" id="statusText">Connecting...</div>
+                <div class="status-text" id="statusText">offline</div>
             </div>
         </div>
         <button class="header-btn" title="Clear Chat" id="clearBtn">🗑️</button>
@@ -87,7 +90,6 @@
     <div class="chat-messages" id="messageContainer">
         <div class="date-badge">TODAY</div>
     </div>
-    <div class="typing-indicator" id="typingIndicator"></div>
 
     <div class="chat-input-area">
         <div class="input-container">
@@ -138,15 +140,14 @@
     const sendBtn = document.getElementById('sendBtn');
     const imageInput = document.getElementById('imageInput');
     const micBtn = document.getElementById('micBtn');
-    const typingIndicator = document.getElementById('typingIndicator');
     const clearBtn = document.getElementById('clearBtn');
 
     let typingTimeout, mediaRecorder, audioChunks = [], isRecording = false, audioStream = null, activePicker = null;
+    let isOpponentOnline = false;
 
     headerTitle.addEventListener('change', () => socket.emit('change_title', headerTitle.value));
     socket.on('title_updated', (newTitle) => headerTitle.value = newTitle);
 
-    // पूरी चैट हिस्ट्री हमेशा सर्वर से लोड होगी
     socket.on('load_history', (history) => {
         messageContainer.innerHTML = '<div class="date-badge">TODAY</div>';
         history.forEach(item => {
@@ -157,10 +158,26 @@
         });
     });
 
-    socket.on('connect', () => statusText.innerText = 'online');
-    socket.on('waiting', () => statusText.innerText = 'offline');
-    socket.on('chat_start', () => statusText.innerText = 'online');
-    socket.on('user_left', () => statusText.innerText = 'offline');
+    // Integrated Online/Offline State Management
+    function setStatus(status) {
+        if (status === 'online') {
+            isOpponentOnline = true;
+            statusText.innerText = 'online';
+        } else if (status === 'offline') {
+            isOpponentOnline = false;
+            statusText.innerText = 'offline';
+        } else if (status === 'typing') {
+            statusText.innerText = 'typing...';
+        }
+    }
+
+    socket.on('connect', () => setStatus('online'));
+    socket.on('waiting', () => setStatus('offline'));
+    socket.on('chat_start', () => setStatus('online'));
+    socket.on('user_left', () => setStatus('offline'));
+
+    socket.on('display_typing', () => setStatus('typing'));
+    socket.on('hide_typing', () => setStatus(isOpponentOnline ? 'online' : 'offline'));
 
     msgInput.addEventListener('input', function() {
         this.style.height = 'auto';
@@ -188,9 +205,16 @@
     }
 
     sendBtn.addEventListener('click', sendMessage);
-    socket.on('display_typing', () => typingIndicator.innerText = 'typing...');
-    socket.on('hide_typing', () => typingIndicator.innerText = '');
-    socket.on('receive_message', (data) => appendMessage(data, 'received'));
+    msgInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    socket.on('receive_message', (data) => appendMessage(data, data.userId === myUserId ? 'sent' : 'received'));
+    socket.on('receive_image', (data) => appendMessage(data, data.userId === myUserId ? 'sent' : 'received'));
+    socket.on('receive_audio', (data) => appendMessage(data, data.userId === myUserId ? 'sent' : 'received'));
 
     function compressImage(file, callback) {
         const reader = new FileReader();
@@ -239,8 +263,6 @@
         }
     });
 
-    socket.on('receive_image', (data) => appendMessage(data, 'received'));
-
     micBtn.addEventListener('click', async () => {
         if (!isRecording) {
             try {
@@ -279,8 +301,6 @@
         }
     });
 
-    socket.on('receive_audio', (data) => appendMessage(data, 'received'));
-
     function escapeHtml(str) { return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
     function formatText(str) { return escapeHtml(str).replace(/\n/g, '<br>'); }
 
@@ -314,6 +334,7 @@
                 e.stopPropagation();
                 openImageViewer(data.image);
             });
+            imgElement.onload = () => messageContainer.scrollTop = messageContainer.scrollHeight;
         }
 
         let lastTap = 0;
@@ -327,6 +348,10 @@
             lastTap = currentTime;
         });
 
+        msgDiv.addEventListener('dblclick', () => {
+            if (!msgDiv.classList.contains('deleted-msg')) showReactionPicker(msgDiv);
+        });
+
         let longPressTimer;
         const startLongPress = () => {
             if (msgDiv.classList.contains('deleted-msg')) return;
@@ -337,6 +362,11 @@
         msgDiv.addEventListener('touchstart', startLongPress);
         msgDiv.addEventListener('touchend', cancelLongPress);
         msgDiv.addEventListener('touchmove', cancelLongPress);
+
+        msgDiv.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (!msgDiv.classList.contains('deleted-msg')) showDeleteOption(data.id, data.userId === myUserId);
+        });
 
         messageContainer.appendChild(msgDiv);
         messageContainer.scrollTop = messageContainer.scrollHeight;
@@ -445,7 +475,7 @@
         }
     });
 
-    document.addEventListener('touchstart', (e) => {
+    document.addEventListener('click', (e) => {
         if (activePicker && !activePicker.contains(e.target)) { activePicker.remove(); activePicker = null; }
     });
 
