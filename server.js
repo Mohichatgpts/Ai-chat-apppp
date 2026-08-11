@@ -1,86 +1,117 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// HTML फ़ाइलें सर्व करने के लिए
 app.use(express.static(__dirname));
 
+const DATA_FILE = path.join(__dirname, 'messages.json');
 let chatHistory = [];
+
+// 1. सर्वर शुरू होते ही पुरानी चैट फ़ाइल से लोड करना
+if (fs.existsSync(DATA_FILE)) {
+    try {
+        const fileData = fs.readFileSync(DATA_FILE, 'utf8');
+        chatHistory = JSON.parse(fileData);
+        console.log('✅ पुरानी चैट सफलतापूर्वक लोड हो गई!');
+    } catch (err) {
+        console.error('⚠️ फ़ाइल पढ़ने में त्रुटि:', err);
+        chatHistory = [];
+    }
+}
+
+// 2. हर नए मैसेज पर चैट को हार्ड डिस्क में सेव करने का फ़ंक्शन
+function saveHistoryToFile() {
+    try {
+        fs.writeFileSync(DATA_FILE, JSON.stringify(chatHistory, null, 2), 'utf8');
+    } catch (err) {
+        console.error('⚠️ चैट सेव करने में त्रुटि:', err);
+    }
+}
+
 let connectedUsersCount = 0;
 
 io.on('connection', (socket) => {
     connectedUsersCount++;
 
-    // ऑनलाइन/वेटिंग स्टेटस हैंडलर
+    // ऑनलाइन/वेटिंग स्टेटस
     if (connectedUsersCount >= 2) {
-        io.emit('chat_start'); // दोनों ऑनलाइन हैं
+        io.emit('chat_start');
     } else {
-        socket.emit('waiting'); // अकेला यूज़र है
+        socket.emit('waiting');
     }
 
-    // चैट हिस्ट्री भेजना
+    // यूज़र के आते ही उसे पूरी चैट हिस्ट्री भेजना (चाहे वो देर से ऑनलाइन आया हो)
     socket.emit('load_history', chatHistory);
 
-    // हेडर नाम/टाइटल बदलना
+    // हेडर टाइटल
     socket.on('change_title', (newTitle) => {
         io.emit('title_updated', newTitle);
     });
 
-    // टाइपिंग इंडिकेटर इवेंट्स
-    socket.on('typing', () => {
-        socket.broadcast.emit('display_typing');
-    });
+    // टाइपिंग इंडिकेटर
+    socket.on('typing', () => socket.broadcast.emit('display_typing'));
+    socket.on('stop_typing', () => socket.broadcast.emit('hide_typing'));
 
-    socket.on('stop_typing', () => {
-        socket.broadcast.emit('hide_typing');
-    });
-
-    // मैसेज भेजना
+    // 📩 मैसेज भेजना + permanent save
     socket.on('send_message', (data) => {
         chatHistory.push(data);
+        saveHistoryToFile(); // Disk पर सेव हुआ
         socket.broadcast.emit('receive_message', data);
     });
 
-    // इमेज भेजना
+    // 📷 इमेज भेजना + permanent save
     socket.on('send_image', (data) => {
         chatHistory.push(data);
+        saveHistoryToFile();
         socket.broadcast.emit('receive_image', data);
     });
 
-    // ऑडियो भेजना
+    // 🎙️ ऑडियो भेजना + permanent save
     socket.on('send_audio', (data) => {
         chatHistory.push(data);
+        saveHistoryToFile();
         socket.broadcast.emit('receive_audio', data);
     });
 
-    // रिएक्शन हैंडलर
+    // रिएक्शन
     socket.on('send_reaction', (data) => {
         const msg = chatHistory.find(m => m.id === data.msgId);
-        if (msg) msg.reaction = data.emoji;
+        if (msg) {
+            msg.reaction = data.emoji;
+            saveHistoryToFile();
+        }
         socket.broadcast.emit('receive_reaction', data);
     });
 
-    // मैसेज डिलीट करना (Everyone)
+    // Delete for Everyone
     socket.on('delete_message_everyone', (data) => {
         const msg = chatHistory.find(m => m.id === data.msgId);
-        if (msg) msg.deleted = true;
+        if (msg) {
+            msg.deleted = true;
+            saveHistoryToFile();
+        }
         io.emit('message_deleted_everyone', data);
     });
 
-    // मैसेज डिलीट करना (Delete for me)
+    // Delete for Me
     socket.on('delete_message_for_me', (data) => {
         const msg = chatHistory.find(m => m.id === data.msgId);
         if (msg) {
             if (!msg.deletedFor) msg.deletedFor = [];
-            msg.deletedFor.push(data.userId);
+            if (!msg.deletedFor.includes(data.userId)) {
+                msg.deletedFor.push(data.userId);
+                saveHistoryToFile();
+            }
         }
     });
 
-    // क्लियर चैट (Clear Chat for me)
+    // Clear Chat
     socket.on('clear_chat_for_me', (data) => {
         chatHistory.forEach(msg => {
             if (!msg.deletedFor) msg.deletedFor = [];
@@ -88,18 +119,18 @@ io.on('connection', (socket) => {
                 msg.deletedFor.push(data.userId);
             }
         });
+        saveHistoryToFile();
     });
 
-    // यूज़र का डिस्कनेक्ट होना (Offline Status)
     socket.on('disconnect', () => {
         connectedUsersCount--;
         if (connectedUsersCount < 2) {
-            io.emit('user_left'); // सामने वाले को Offline दिखाएगा
+            io.emit('user_left');
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
