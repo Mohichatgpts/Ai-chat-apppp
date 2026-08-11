@@ -80,7 +80,7 @@
         <div class="header-left">
             <div class="avatar">👤</div>
             <div class="header-info">
-                <input type="text" class="header-title-input" id="headerTitle" value="🙂">
+                <input type="text" class="header-title-input" id="headerTitle" value="Friend🙂">
                 <div class="status-text" id="statusText">offline</div>
             </div>
         </div>
@@ -163,9 +163,9 @@
         if (status === 'online') {
             isOpponentOnline = true;
             statusText.innerText = 'online';
-        } else if (status === 'offline') {
+        } else if (status === '2nd person is offline') {
             isOpponentOnline = false;
-            statusText.innerText = 'offline';
+            statusText.innerText = '2nd person is offline';
         } else if (status === 'typing') {
             statusText.innerText = 'typing...';
         }
