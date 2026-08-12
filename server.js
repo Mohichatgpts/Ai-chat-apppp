@@ -11,121 +11,161 @@ const io = new Server(server);
 app.use(express.static(__dirname));
 
 const DATA_FILE = path.join(__dirname, 'messages.json');
-let chatHistory = [];
+let chatRoomsData = {}; // Room wise data store
 
-// 1. सर्वर शुरू होते ही पुरानी चैट फ़ाइल से लोड करना
+// 1. सर्वर स्टार्ट होने पर चैट लोड करें
 if (fs.existsSync(DATA_FILE)) {
     try {
         const fileData = fs.readFileSync(DATA_FILE, 'utf8');
-        chatHistory = JSON.parse(fileData);
-        console.log('✅ पुरानी चैट सफलतापूर्वक लोड हो गई!');
+        chatRoomsData = JSON.parse(fileData);
+        console.log('✅ फाइल से डेटा सफलतापूर्वक लोड हो गया!');
     } catch (err) {
-        console.error('⚠️ फ़ाइल पढ़ने में त्रुटि:', err);
-        chatHistory = [];
+        console.error('⚠️ फाइल लोड करने में गड़बड़:', err);
+        chatRoomsData = {};
     }
 }
 
-// 2. हर नए मैसेज पर चैट को हार्ड डिस्क में सेव करने का फ़ंक्शन
-function saveHistoryToFile() {
+// 2. फाइल में चैट सेव करने का फंक्शन
+function saveDataToFile() {
     try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(chatHistory, null, 2), 'utf8');
+        fs.writeFileSync(DATA_FILE, JSON.stringify(chatRoomsData, null, 2), 'utf8');
     } catch (err) {
-        console.error('⚠️ चैट सेव करने में त्रुटि:', err);
+        console.error('⚠️ फाइल सेव करने में त्रुटि:', err);
     }
 }
 
-let connectedUsersCount = 0;
+// रूम में मौजूद एक्टिव यूज़र्स का ट्रैक रखने के लिए
+const roomUsers = {};
 
 io.on('connection', (socket) => {
-    connectedUsersCount++;
+    let currentRoom = null;
+    let currentUserId = null;
 
-    // ऑनलाइन/वेटिंग स्टेटस
-    if (connectedUsersCount >= 2) {
-        io.emit('chat_start');
-    } else {
-        socket.emit('waiting');
-    }
+    // 🚪 यूज़र का रूम जॉइन करना
+    socket.on('join_room', ({ roomId, userId }) => {
+        currentRoom = roomId || 'default_room';
+        currentUserId = userId;
 
-    // यूज़र के आते ही उसे पूरी चैट हिस्ट्री भेजना (चाहे वो देर से ऑनलाइन आया हो)
-    socket.emit('load_history', chatHistory);
+        socket.join(currentRoom);
 
-    // हेडर टाइटल
+        if (!chatRoomsData[currentRoom]) {
+            chatRoomsData[currentRoom] = { history: [], title: '🙂' };
+        }
+
+        if (!roomUsers[currentRoom]) {
+            roomUsers[currentRoom] = new Set();
+        }
+        roomUsers[currentRoom].add(currentUserId);
+
+        // 1. चैट हिस्ट्री भेजें
+        socket.emit('load_history', chatRoomsData[currentRoom].history || []);
+        // 2. वर्तमान हेडर टाइटल भेजें
+        socket.emit('title_updated', chatRoomsData[currentRoom].title || '🙂');
+
+        // 3. रूम में 1 से ज़्यादा लोग हैं तो 'online' दिखाएँ
+        const onlineCount = roomUsers[currentRoom].size;
+        if (onlineCount > 1) {
+            io.to(currentRoom).emit('status_change', 'online');
+        } else {
+            socket.emit('status_change', 'offline');
+        }
+    });
+
+    // हेडर टाइटल अपडेट
     socket.on('change_title', (newTitle) => {
-        io.emit('title_updated', newTitle);
+        if (!currentRoom) return;
+        chatRoomsData[currentRoom].title = newTitle;
+        saveDataToFile();
+        io.to(currentRoom).emit('title_updated', newTitle);
     });
 
-    // टाइपिंग इंडिकेटर
-    socket.on('typing', () => socket.broadcast.emit('display_typing'));
-    socket.on('stop_typing', () => socket.broadcast.emit('hide_typing'));
+    // टाइपिंग स्टेटस
+    socket.on('typing', () => {
+        if (currentRoom) socket.to(currentRoom).emit('display_typing');
+    });
 
-    // 📩 मैसेज भेजना + permanent save
+    socket.on('stop_typing', () => {
+        if (currentRoom) socket.to(currentRoom).emit('hide_typing');
+    });
+
+    // 📩 टेक्स्ट मैसेज
     socket.on('send_message', (data) => {
-        chatHistory.push(data);
-        saveHistoryToFile(); // Disk पर सेव हुआ
-        socket.broadcast.emit('receive_message', data);
+        if (!currentRoom) return;
+        chatRoomsData[currentRoom].history.push(data);
+        saveDataToFile();
+        socket.to(currentRoom).emit('receive_message', data);
     });
 
-    // 📷 इमेज भेजना + permanent save
+    // 📷 इमेज मैसेज
     socket.on('send_image', (data) => {
-        chatHistory.push(data);
-        saveHistoryToFile();
-        socket.broadcast.emit('receive_image', data);
+        if (!currentRoom) return;
+        chatRoomsData[currentRoom].history.push(data);
+        saveDataToFile();
+        socket.to(currentRoom).emit('receive_image', data);
     });
 
-    // 🎙️ ऑडियो भेजना + permanent save
+    // 🎙️ ऑडियो मैसेज
     socket.on('send_audio', (data) => {
-        chatHistory.push(data);
-        saveHistoryToFile();
-        socket.broadcast.emit('receive_audio', data);
+        if (!currentRoom) return;
+        chatRoomsData[currentRoom].history.push(data);
+        saveDataToFile();
+        socket.to(currentRoom).emit('receive_audio', data);
     });
 
     // रिएक्शन
     socket.on('send_reaction', (data) => {
-        const msg = chatHistory.find(m => m.id === data.msgId);
+        if (!currentRoom) return;
+        const msg = chatRoomsData[currentRoom].history.find(m => m.id === data.msgId);
         if (msg) {
             msg.reaction = data.emoji;
-            saveHistoryToFile();
+            saveDataToFile();
         }
-        socket.broadcast.emit('receive_reaction', data);
+        socket.to(currentRoom).emit('receive_reaction', data);
     });
 
-    // Delete for Everyone
+    // Delete Everyone
     socket.on('delete_message_everyone', (data) => {
-        const msg = chatHistory.find(m => m.id === data.msgId);
+        if (!currentRoom) return;
+        const msg = chatRoomsData[currentRoom].history.find(m => m.id === data.msgId);
         if (msg) {
             msg.deleted = true;
-            saveHistoryToFile();
+            saveDataToFile();
         }
-        io.emit('message_deleted_everyone', data);
+        io.to(currentRoom).emit('message_deleted_everyone', data);
     });
 
-    // Delete for Me
+    // Delete For Me
     socket.on('delete_message_for_me', (data) => {
-        const msg = chatHistory.find(m => m.id === data.msgId);
+        if (!currentRoom) return;
+        const msg = chatRoomsData[currentRoom].history.find(m => m.id === data.msgId);
         if (msg) {
             if (!msg.deletedFor) msg.deletedFor = [];
             if (!msg.deletedFor.includes(data.userId)) {
                 msg.deletedFor.push(data.userId);
-                saveHistoryToFile();
+                saveDataToFile();
             }
         }
     });
 
-    // Clear Chat
+    // Clear Chat For Me
     socket.on('clear_chat_for_me', (data) => {
-        chatHistory.forEach(msg => {
+        if (!currentRoom) return;
+        chatRoomsData[currentRoom].history.forEach(msg => {
             if (!msg.deletedFor) msg.deletedFor = [];
             if (!msg.deletedFor.includes(data.userId)) {
                 msg.deletedFor.push(data.userId);
             }
         });
-        saveHistoryToFile();
+        saveDataToFile();
     });
 
+    // डिस्कनेक्ट होने पर
     socket.on('disconnect', () => {
-        connectedUsersCount--;
-        if (connectedUsersCount < 2) {
-            io.emit('user_left');
+        if (currentRoom && roomUsers[currentRoom]) {
+            roomUsers[currentRoom].delete(currentUserId);
+            if (roomUsers[currentRoom].size <= 1) {
+                io.to(currentRoom).emit('status_change', 'offline');
+            }
         }
     });
 });
