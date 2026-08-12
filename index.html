@@ -8,12 +8,10 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
         
-        /* Fixed Body position so mobile keyboard won't scroll the entire page */
         html, body { height: 100%; width: 100%; overflow: hidden; background-color: #008069; display: flex; justify-content: center; position: fixed; top: 0; left: 0; right: 0; bottom: 0; }
         
         .chat-container { width: 100%; max-width: 500px; height: 100%; height: 100dvh; background-color: #efeae2; display: flex; flex-direction: column; position: relative; }
         
-        /* Flex shrink 0 stops header from squishing or sliding away */
         .chat-header { padding: 10px 14px; background-color: #008069; display: flex; align-items: center; justify-content: space-between; color: #fff; z-index: 20; box-shadow: 0 1px 3px rgba(0,0,0,0.2); flex-shrink: 0; }
         .header-left { display: flex; align-items: center; gap: 10px; flex: 1; }
         .avatar { width: 38px; height: 38px; border-radius: 50%; background-color: #dfe5e7; display: flex; justify-content: center; align-items: center; font-size: 20px; flex-shrink: 0; }
@@ -46,7 +44,6 @@
         .react-btn { background: none; border: none; font-size: 18px; padding: 2px 4px; border-radius: 50%; cursor: pointer; }
         @keyframes popUp { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         
-        /* Flex shrink 0 keeps input panel grounded at bottom */
         .chat-input-area { padding: 8px 10px; background-color: #f0f2f5; display: flex; align-items: center; gap: 6px; z-index: 30; flex-shrink: 0; }
         .input-container { flex: 1; background-color: #fff; border-radius: 24px; display: flex; align-items: center; padding: 4px 12px; min-height: 42px; }
         .input-box { flex: 1; background: transparent; border: none; outline: none; color: #111b21; font-size: 15px; max-height: 100px; resize: none; padding: 6px 0; line-height: 20px; }
@@ -80,7 +77,7 @@
         <div class="header-left">
             <div class="avatar">👤</div>
             <div class="header-info">
-                <input type="text" class="header-title-input" id="headerTitle" value="Friend🙂">
+                <input type="text" class="header-title-input" id="headerTitle" value="🙂">
                 <div class="status-text" id="statusText">offline</div>
             </div>
         </div>
@@ -127,6 +124,14 @@
 <script>
     const socket = io();
 
+    // 1. URL से रूम आईडी निकालें या डिफ़ॉल्ट रूम बनाएं
+    const urlParams = new URLSearchParams(window.location.search);
+    let roomId = urlParams.get('room');
+    if (!roomId) {
+        roomId = 'private_chat_1'; // डिफ़ॉल्ट रूम
+    }
+
+    // 2. हर डिवाइस की एक पक्की आईडी
     let myUserId = localStorage.getItem('chat_user_id');
     if (!myUserId) {
         myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -145,6 +150,11 @@
     let typingTimeout, mediaRecorder, audioChunks = [], isRecording = false, audioStream = null, activePicker = null;
     let isOpponentOnline = false;
 
+    // कनेक्ट होते ही सही रूम में जुड़ें
+    socket.on('connect', () => {
+        socket.emit('join_room', { roomId, userId: myUserId });
+    });
+
     headerTitle.addEventListener('change', () => socket.emit('change_title', headerTitle.value));
     socket.on('title_updated', (newTitle) => headerTitle.value = newTitle);
 
@@ -158,26 +168,24 @@
         });
     });
 
-    // Integrated Online/Offline State Management
-    function setStatus(status) {
+    // ऑनलाइन/ऑफलाइन अपडेट
+    socket.on('status_change', (status) => {
         if (status === 'online') {
             isOpponentOnline = true;
             statusText.innerText = 'online';
-        } else if (status === '2nd person is offline') {
+        } else {
             isOpponentOnline = false;
-            statusText.innerText = '2nd person is offline';
-        } else if (status === 'typing') {
-            statusText.innerText = 'typing...';
+            statusText.innerText = 'offline';
         }
-    }
+    });
 
-    socket.on('connect', () => setStatus('online'));
-    socket.on('waiting', () => setStatus('offline'));
-    socket.on('chat_start', () => setStatus('online'));
-    socket.on('user_left', () => setStatus('offline'));
+    socket.on('display_typing', () => {
+        statusText.innerText = 'typing...';
+    });
 
-    socket.on('display_typing', () => setStatus('typing'));
-    socket.on('hide_typing', () => setStatus(isOpponentOnline ? 'online' : 'offline'));
+    socket.on('hide_typing', () => {
+        statusText.innerText = isOpponentOnline ? 'online' : 'offline';
+    });
 
     msgInput.addEventListener('input', function() {
         this.style.height = 'auto';
