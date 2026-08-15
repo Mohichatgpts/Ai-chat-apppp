@@ -7,9 +7,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-        
         html, body { height: 100%; width: 100%; overflow: hidden; background-color: #008069; display: flex; justify-content: center; position: fixed; top: 0; left: 0; right: 0; bottom: 0; }
-        
         .chat-container { width: 100%; max-width: 500px; height: 100%; height: 100dvh; background-color: #efeae2; display: flex; flex-direction: column; position: relative; }
         
         .chat-header { padding: 10px 14px; background-color: #008069; display: flex; align-items: center; justify-content: space-between; color: #fff; z-index: 20; box-shadow: 0 1px 3px rgba(0,0,0,0.2); flex-shrink: 0; }
@@ -122,16 +120,15 @@
 </div>
 
 <script>
-    const socket = io();
+    const socket = io({
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000
+    });
 
-    // 1. URL से रूम आईडी निकालें या डिफ़ॉल्ट रूम बनाएं
     const urlParams = new URLSearchParams(window.location.search);
-    let roomId = urlParams.get('room');
-    if (!roomId) {
-        roomId = 'private_chat_1'; // डिफ़ॉल्ट रूम
-    }
+    let roomId = urlParams.get('room') || 'main_chat';
 
-    // 2. हर डिवाइस की एक पक्की आईडी
     let myUserId = localStorage.getItem('chat_user_id');
     if (!myUserId) {
         myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -150,10 +147,11 @@
     let typingTimeout, mediaRecorder, audioChunks = [], isRecording = false, audioStream = null, activePicker = null;
     let isOpponentOnline = false;
 
-    // कनेक्ट होते ही सही रूम में जुड़ें
-    socket.on('connect', () => {
+    function joinRoom() {
         socket.emit('join_room', { roomId, userId: myUserId });
-    });
+    }
+
+    socket.on('connect', joinRoom);
 
     headerTitle.addEventListener('change', () => socket.emit('change_title', headerTitle.value));
     socket.on('title_updated', (newTitle) => headerTitle.value = newTitle);
@@ -162,30 +160,18 @@
         messageContainer.innerHTML = '<div class="date-badge">TODAY</div>';
         history.forEach(item => {
             if (!item.deletedFor || !item.deletedFor.includes(myUserId)) {
-                const isSent = item.userId === myUserId;
-                appendMessage(item, isSent ? 'sent' : 'received');
+                appendMessage(item, item.userId === myUserId ? 'sent' : 'received');
             }
         });
     });
 
-    // ऑनलाइन/ऑफलाइन अपडेट
     socket.on('status_change', (status) => {
-        if (status === 'online') {
-            isOpponentOnline = true;
-            statusText.innerText = 'online';
-        } else {
-            isOpponentOnline = false;
-            statusText.innerText = 'offline';
-        }
-    });
-
-    socket.on('display_typing', () => {
-        statusText.innerText = 'typing...';
-    });
-
-    socket.on('hide_typing', () => {
+        isOpponentOnline = (status === 'online');
         statusText.innerText = isOpponentOnline ? 'online' : 'offline';
     });
+
+    socket.on('display_typing', () => { statusText.innerText = 'typing...'; });
+    socket.on('hide_typing', () => { statusText.innerText = isOpponentOnline ? 'online' : 'offline'; });
 
     msgInput.addEventListener('input', function() {
         this.style.height = 'auto';
@@ -230,24 +216,13 @@
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                const maxDim = 1200;
-
-                if (width > height && width > maxDim) {
-                    height = Math.round((height * maxDim) / width);
-                    width = maxDim;
-                } else if (height > maxDim) {
-                    width = Math.round((width * maxDim) / height);
-                    height = maxDim;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
+                let width = img.width, height = img.height, maxDim = 1200;
+                if (width > height && width > maxDim) { height = Math.round((height * maxDim) / width); width = maxDim; }
+                else if (height > maxDim) { width = Math.round((width * maxDim) / height); height = maxDim; }
+                canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-                callback(compressedBase64);
+                callback(canvas.toDataURL('image/jpeg', 0.7));
             };
             img.src = e.target.result;
         };
@@ -281,9 +256,9 @@
 
                 mediaRecorder = new MediaRecorder(audioStream, options);
                 audioChunks = [];
-                mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
                 mediaRecorder.onstop = () => {
-                    if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+                    if (audioStream) audioStream.getTracks().forEach(t => t.stop());
                     const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/mp4' });
                     const reader = new FileReader();
                     reader.onload = function(event) {
@@ -338,18 +313,14 @@
 
         const imgElement = msgDiv.querySelector('.chat-img-thumb');
         if (imgElement) {
-            imgElement.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openImageViewer(data.image);
-            });
+            imgElement.addEventListener('click', (e) => { e.stopPropagation(); openImageViewer(data.image); });
             imgElement.onload = () => messageContainer.scrollTop = messageContainer.scrollHeight;
         }
 
         let lastTap = 0;
         msgDiv.addEventListener('touchend', (e) => {
             const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 300 && tapLength > 0) {
+            if (currentTime - lastTap < 300 && currentTime - lastTap > 0) {
                 e.preventDefault();
                 if (!msgDiv.classList.contains('deleted-msg')) showReactionPicker(msgDiv);
             }
@@ -361,13 +332,11 @@
         });
 
         let longPressTimer;
-        const startLongPress = () => {
+        msgDiv.addEventListener('touchstart', () => {
             if (msgDiv.classList.contains('deleted-msg')) return;
             longPressTimer = setTimeout(() => showDeleteOption(data.id, data.userId === myUserId), 500);
-        };
+        });
         const cancelLongPress = () => clearTimeout(longPressTimer);
-
-        msgDiv.addEventListener('touchstart', startLongPress);
         msgDiv.addEventListener('touchend', cancelLongPress);
         msgDiv.addEventListener('touchmove', cancelLongPress);
 
@@ -383,7 +352,6 @@
     function showDeleteOption(msgId, isMyMessage) {
         document.getElementById('modalTitle').innerText = 'Delete message?';
         document.getElementById('modalBody').innerText = 'Choose how you want to delete this message.';
-
         const actionsContainer = document.getElementById('modalActions');
         actionsContainer.innerHTML = '';
 
@@ -432,12 +400,9 @@
         if (activePicker) activePicker.remove();
         const picker = document.createElement('div');
         const rect = msgDiv.getBoundingClientRect();
-        const posClass = (rect.top < 100) ? 'pos-bottom' : 'pos-top';
-
-        picker.className = `reaction-picker ${posClass} ` + (msgDiv.classList.contains('sent') ? 'sent-picker' : 'received-picker');
-        const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '😡', '🙂', '➕'];
-
-        quickEmojis.forEach(emoji => {
+        picker.className = `reaction-picker ${rect.top < 100 ? 'pos-bottom' : 'pos-top'} ${msgDiv.classList.contains('sent') ? 'sent-picker' : 'received-picker'}`;
+        
+        ['👍', '❤️', '😂', '😮', '😢', '😡', '🙂', '➕'].forEach(emoji => {
             const btn = document.createElement('button');
             btn.className = 'react-btn';
             btn.innerText = emoji;
@@ -445,10 +410,9 @@
                 e.stopPropagation();
                 if (emoji === '➕') {
                     const customEmoji = prompt('कीबोर्ड से इमोजी चुनें:', '🔥');
-                    if (customEmoji && customEmoji.trim() !== '') setReaction(msgDiv, customEmoji.trim());
+                    if (customEmoji && customEmoji.trim()) setReaction(msgDiv, customEmoji.trim());
                 } else setReaction(msgDiv, emoji);
-                picker.remove();
-                activePicker = null;
+                picker.remove(); activePicker = null;
             };
             picker.appendChild(btn);
         });
@@ -490,8 +454,7 @@
     clearBtn.addEventListener('click', () => {
         document.getElementById('modalTitle').innerText = 'Clear chat?';
         document.getElementById('modalBody').innerText = 'This will clear all messages from your device.';
-        const actionsContainer = document.getElementById('modalActions');
-        actionsContainer.innerHTML = `
+        document.getElementById('modalActions').innerHTML = `
             <button class="modal-btn danger" onclick="clearMessagesLocal()">CLEAR CHAT</button>
             <button class="modal-btn" onclick="closeModal()">CANCEL</button>
         `;
@@ -503,7 +466,6 @@
         socket.emit('clear_chat_for_me', { userId: myUserId });
         closeModal();
     }
-
     function closeModal() { document.getElementById('customModal').style.display = 'none'; }
 
     const fullImg = document.getElementById('fullImage');
@@ -514,57 +476,39 @@
     const imgViewerBody = document.getElementById('imgViewerBody');
 
     let currentScale = 1, currentX = 0, currentY = 0;
-    let startTouchDistance = 0, initialScale = 1;
-    let startTouchX = 0, startTouchY = 0, initialX = 0, initialY = 0;
+    let startTouchDistance = 0, initialScale = 1, startTouchX = 0, startTouchY = 0, initialX = 0, initialY = 0;
 
     function openImageViewer(src) {
         fullImg.src = src;
         imgOverlay.style.display = 'flex';
         resetViewer();
     }
-
     closeImgBtn.addEventListener('click', () => imgOverlay.style.display = 'none');
     resetZoomBtn.addEventListener('click', resetViewer);
 
-    function resetViewer() {
-        currentScale = 1; currentX = 0; currentY = 0;
-        updateImageTransform();
-    }
-
-    function updateImageTransform() {
-        fullImg.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentScale})`;
-    }
+    function resetViewer() { currentScale = 1; currentX = 0; currentY = 0; updateImageTransform(); }
+    function updateImageTransform() { fullImg.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentScale})`; }
 
     imgViewerBody.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
-            startTouchDistance = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
+            startTouchDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             initialScale = currentScale;
         } else if (e.touches.length === 1 && currentScale > 1) {
-            startTouchX = e.touches[0].clientX;
-            startTouchY = e.touches[0].clientY;
-            initialX = currentX;
-            initialY = currentY;
+            startTouchX = e.touches[0].clientX; startTouchY = e.touches[0].clientY;
+            initialX = currentX; initialY = currentY;
         }
     });
 
     imgViewerBody.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2) {
-            const currentDistance = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
+            const curDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             if (startTouchDistance > 0) {
-                currentScale = Math.max(1, Math.min(5, initialScale * (currentDistance / startTouchDistance)));
+                currentScale = Math.max(1, Math.min(5, initialScale * (curDist / startTouchDistance)));
                 updateImageTransform();
             }
         } else if (e.touches.length === 1 && currentScale > 1) {
-            const deltaX = e.touches[0].clientX - startTouchX;
-            const deltaY = e.touches[0].clientY - startTouchY;
-            currentX = initialX + deltaX;
-            currentY = initialY + deltaY;
+            currentX = initialX + (e.touches[0].clientX - startTouchX);
+            currentY = initialY + (e.touches[0].clientY - startTouchY);
             updateImageTransform();
         }
     });
@@ -574,7 +518,6 @@
             const response = await fetch(fullImg.src);
             const blob = await response.blob();
             const blobUrl = URL.createObjectURL(blob);
-            
             const link = document.createElement('a');
             link.href = blobUrl;
             link.download = 'chat_photo_' + Date.now() + '.jpg';
@@ -582,11 +525,8 @@
             link.click();
             document.body.removeChild(link);
             setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-        } catch (e) {
-            window.open(fullImg.src, '_blank');
-        }
+        } catch (e) { window.open(fullImg.src, '_blank'); }
     });
 </script>
-
 </body>
 </html>
